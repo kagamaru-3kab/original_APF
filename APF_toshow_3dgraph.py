@@ -1,6 +1,6 @@
 """
 Complete
-経路をグラフに表示
+経路を2Dグラフに表示
 3Dポテンシャルも表示
 """
 import numpy as np
