@@ -20,6 +20,9 @@ class goal():
         self.diameter_size = 0.2         
         self.locate_goal = locate
         self.attracted_area = area
+    
+    def get_locate(self, locate):
+        self.locate_goal = locate
 
 class obstacles():
     def __init__(self, obstacles = None):  
@@ -163,18 +166,36 @@ class plot_path(): #plot vehicle trajectory
         pot = self.calc_all_potential()
         x, y = np.meshgrid(np.arange(self.graph_range[0], self.graph_range[1] + 1), np.arange(self.graph_range[0], self.graph_range[1] + 1))
         surf = ax3d.plot_surface(x, y, pot, rstride=1, cstride=1, cmap= cm.coolwarm)
-        plt.show()    
+        plt.show()
+
+class tempolary_goal():
+    def __init__(self):
+        None
+
+    def calc_line_from_start2goal(self, locate_goal, locate_vehicles): #calc coefficient of line which pass start and goal 
+        a = locate_goal[1]*locate_vehicles[1]
+        b = locate_goal[0]-locate_vehicles[0]
+        c = locate_vehicles[0]*locate_goal[1]-locate_goal[0]*locate_vehicles[1]
+        return a,b,c
+
+    def detect_obs_ontheline(self, locate_goal, locate_vehicles, locate_obs): #jedge which obstacles on the line
+        
+
+
+        
+
+            
 
 def main(): 
-    if APF.dist_v2goal == None:
+    if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
         print("if goal dist is None calc once:", APF.dist_v2goal,"\n")
     if APF.dist_v2goal != None:
-        while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:
+        while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal
             partialdiffer_x, partialdiffer_y = APF.route_creater(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             path_fig.plot_vehicle(veh1.locate_vehicles)
-            plt.pause(0.0002)
+            plt.pause(0.002)
         print("finish and show 3d")
         path_fig.plot_3d_potential()
 
