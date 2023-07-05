@@ -36,7 +36,7 @@ class vehicles():
 
         """
         self.diameter = 0.5
-        self.speed    = 0.1
+        self.speed    = 0.3
         self.locate_vehicles = init_locate
         
     
@@ -55,6 +55,8 @@ class calc_APF():
         self.vehicles_speed = vehicles_speed
         self.repulsed_area = 10
         self.path = list()
+        self.flagarray_x =[]
+        self.flagarray_y =[]
     
     def calc_goal_dist_theta(self, locate_goal, locate_vehicles):
         #print("CALC_GOAL:locategoal,locatevehicles", type(locate_goal), type(locate_vehicles),"\n")
@@ -132,6 +134,20 @@ class calc_APF():
         synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
         partialdiffer_x /=synthesis_v/self.vehicles_speed*-1
         partialdiffer_y /=synthesis_v/self.vehicles_speed*-1
+        print("partx,party",partialdiffer_x,partialdiffer_y)
+
+        if np.sign(partialdiffer_x) == 1:
+            flagx = 1
+        elif np.sign(partialdiffer_x) == -1:
+            flagx = -1
+        if np.sign(partialdiffer_y) == 1:
+            flagy = 1
+        elif np.sign(partialdiffer_y) == -1:
+            flagy = -1
+        self.flagarray_x.append 
+
+
+
         return partialdiffer_x, partialdiffer_y
 
 class plot_path():
@@ -149,7 +165,7 @@ class plot_path():
     
     def plot_obs(self, obstacles):
         for i in range(len(obstacles)):
-            circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius=5, fc ="b", alpha = 0.3)
+            circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius=10, fc ="b", alpha = 0.3)
             self.ploting_path.add_patch(circle_obs)
             self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")
     
@@ -157,7 +173,7 @@ class plot_path():
         self.ploting_path.plot(locate_vehile[0], locate_vehile[1], ".r")
 
 if __name__ == '__main__':
-    fgoal = goal([35,45],3)
+    fgoal = goal([45,45],3)
     obs = obstacles([[25,30]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
@@ -171,8 +187,8 @@ if __name__ == '__main__':
             partialdiffer_x, partialdiffer_y = APF.route_creater(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
             #print("partialdiffer",partialdiffer_x,partialdiffer_y,"type partdif_x,y", type(partialdiffer_x),type(partialdiffer_y),"\n")
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
-            print("locate_veh = ",veh1.locate_vehicles,"\n")
-            print("move distance",[partialdiffer_x, partialdiffer_y],"\n")
+            #print("locate_veh = ",veh1.locate_vehicles,"\n")
+            #print("move distance",[partialdiffer_x, partialdiffer_y],"\n")
             path_fig.plot_vehicle(veh1.locate_vehicles)
             plt.pause(0.02)
         
