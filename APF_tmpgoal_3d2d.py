@@ -179,12 +179,15 @@ class tempolary_goal():
         return a,b,c
 
     def detect_obs_ontheline(self, locate_goal, locate_vehicles, locate_obs): #jedge which obstacles on the line
-        
-
-
-        
-
-            
+        dist_from_line = [0]*len(locate_obs)
+        a,b,c = self.calc_line_from_start2goal(locate_goal, locate_vehicles)
+        Denominator = np.sqrt(a**2+b**2)
+        for i in range(len(locate_obs)):
+            Numerator = abs(a*locate_obs[i][0]+b*locate_obs[i][1]+c)
+            dist_from_line[i] = Numerator/Denominator
+            if dist_from_line[i] < APF.repulsed_area:
+                
+         
 
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
@@ -198,6 +201,7 @@ def main():
             plt.pause(0.002)
         print("finish and show 3d")
         path_fig.plot_3d_potential()
+
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
