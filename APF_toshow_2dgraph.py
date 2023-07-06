@@ -1,6 +1,7 @@
 """
 デバック用print多数
 経路を2Dグラフに表示
+滞留検知
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -57,6 +58,10 @@ class calc_APF():
         self.path = list()
         self.flagarray_x =[]
         self.flagarray_y =[]
+        self.countx = 0
+        self.county = 0
+        self.before_flagx = 0
+        self.before_flagy = 0
     
     def calc_goal_dist_theta(self, locate_goal, locate_vehicles):
         #print("CALC_GOAL:locategoal,locatevehicles", type(locate_goal), type(locate_vehicles),"\n")
@@ -138,15 +143,32 @@ class calc_APF():
 
         if np.sign(partialdiffer_x) == 1:
             flagx = 1
+            print("flagx =1")
         elif np.sign(partialdiffer_x) == -1:
-            flagx = -1
+            flagx = 0
+            print("flagx =0")
         if np.sign(partialdiffer_y) == 1:
             flagy = 1
         elif np.sign(partialdiffer_y) == -1:
-            flagy = -1
-        self.flagarray_x.append 
-
-
+            flagy = 0
+        tairyux = 0
+        tairyuy = 0
+        print("before,after",self.before_flagx,flagx)
+        if self.before_flagx != flagx:
+            self.countx += 1 
+            print("countx ===", self.countx)
+            if self.countx >= 10:
+                print("x ga tairyuu")
+                tairyux = 1
+        if self.before_flagy != flagy:
+            self.county += 1
+            if self.county >= 10:
+                print("y ga tairyuu")
+                tairyuy = 1
+        if tairyux == 1 and tairyuy == 1:
+            print("tairyuuuuuu")
+        self.before_flagx = flagx
+        self.before_flagy = flagy
 
         return partialdiffer_x, partialdiffer_y
 
