@@ -177,16 +177,24 @@ class tempolary_goal():
         b = locate_goal[0]-locate_vehicles[0]
         c = locate_vehicles[0]*locate_goal[1]-locate_goal[0]*locate_vehicles[1]
         return a,b,c
+    
+    def plot_line_from_start2goal(self, a,b,c, locate_goal, locate_vehiles):
+        for x in range(locate_goal[0]):
+            y = -1*a*x-c
+            path_fig.ploting_path.plot(x, y, ".k")
+
 
     def detect_obs_ontheline(self, locate_goal, locate_vehicles, locate_obs): #jedge which obstacles on the line
         dist_from_line = [0]*len(locate_obs)
         a,b,c = self.calc_line_from_start2goal(locate_goal, locate_vehicles)
+        self.plot_line_from_start2goal(a, b, c, locate_goal, locate_vehicles)
         Denominator = np.sqrt(a**2+b**2)
         for i in range(len(locate_obs)):
             Numerator = abs(a*locate_obs[i][0]+b*locate_obs[i][1]+c)
             dist_from_line[i] = Numerator/Denominator
             if dist_from_line[i] < APF.repulsed_area:
-                
+                register_id_obs = i
+
          
 
 def main(): 

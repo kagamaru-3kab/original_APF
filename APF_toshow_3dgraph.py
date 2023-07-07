@@ -54,7 +54,7 @@ class calc_APF():
     def __init__(self,vehicles_speed):
         self.dist_v2goal = None     
         self.attracte_k  = 10
-        self.repulse_k   = 0.1
+        self.repulse_k   = 0.2
         self.vehicles_speed = vehicles_speed
         self.repulsed_area = 5
     
