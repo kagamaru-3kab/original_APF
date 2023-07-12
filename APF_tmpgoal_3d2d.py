@@ -112,7 +112,7 @@ class calc_APF():
         partialdiffer_x = delt_poten_x - current_potential
         partialdiffer_y = delt_poten_y - current_potential
         synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
-        partialdiffer_x /=synthesis_v/self.vehicles_speed*-1
+        partialdiffer_x /=synthesis_v/self.vehicles_speed*-1   #正規化らしい
         partialdiffer_y /=synthesis_v/self.vehicles_speed*-1
         return partialdiffer_x, partialdiffer_y
 
@@ -174,24 +174,26 @@ class tempolary_goal():
         self.nearest_obs = None
 
     def calc_line_from_start2goal(self, locate_goal, locate_vehicles): #calc coefficient of line which pass start and goal 
-        self.a = locate_goal[1]*locate_vehicles[1]
+        self.a = locate_goal[1]-locate_vehicles[1]
         self.b = locate_goal[0]-locate_vehicles[0]
         self.c = locate_vehicles[0]*locate_goal[1]-locate_goal[0]*locate_vehicles[1]
     
     def plot_line_from_start2goal(self, a,b,c, locate_goal, locate_vehiles): #plot_line which pass start and goal 
-        for x in range(locate_goal[0]):
-            y = (-1*a*x-c)/b
-            path_fig.ploting_path.plot(x, y, ".k")
+        if b != 0 and a != 0 :
+            for x in range(locate_goal[0]):
+                y = (a*x-c)/b
+                path_fig.ploting_path.plot(x, y, ".k")
+        elif b == 0 and a != 0:
+            for y in range(locate_goal[0]):
+                x = locate_vehiles[0] 
+                path_fig.ploting_path.plot(x, y, ".k")
 
-    def find_nearest_obs(self, register_id_obs): #find nearest obs on the line from vehicle
-        for i, id_obs in enumerate(register_id_obs):
-            if i == 0:
-                self.nearest_obs = [id_obs, APF.dist_v2obs[id_obs]]
-            else:
-                if self.nearest_obs[1] > APF.dist_v2obs[id_obs]:
-                    self.nearest_obs = [id_obs, APF.dist_v2obs[id_obs]]
-        print("最近傍のobsは",self.nearest_obs)
-
+        elif a == 0 and b != 0:
+            for x in range(locate_goal[0]):
+                y = locate_vehiles[1] 
+                path_fig.ploting_path.plot(x, y, ".k")
+        else:
+            print("set goal and start on same point")
 
     def detect_obs_ontheline(self, locate_goal, locate_vehicles, locate_obs): #jedge which obstacles on the line
         dist_from_line = [0]*len(locate_obs)
@@ -211,11 +213,26 @@ class tempolary_goal():
         print("ゴールまでの線上のobsは",len(register_id_obs),"個だIDは",register_id_obs,"\n")
         self.find_nearest_obs(register_id_obs)
     
+    def find_nearest_obs(self, register_id_obs): #find nearest obs on the line from vehicle
+        for i, id_obs in enumerate(register_id_obs):
+            if i == 0:
+                self.nearest_obs = [id_obs, APF.dist_v2obs[id_obs]]
+            else:
+                if self.nearest_obs[1] > APF.dist_v2obs[id_obs]:
+                    self.nearest_obs = [id_obs, APF.dist_v2obs[id_obs]]
+        print("最近傍のobsは",self.nearest_obs)
+    
     def set_temporary_goal(self, nearest_obs):
         tempolary_goal_locate = [obs.locate_obstacles[nearest_obs[0]]]
-
-        if tempolary_goal_locate[1] > (-1*self.a*tempolary_goal_locate[0]-self.c)/self.b:
-            tempolary_goal_locate += 
+        self.slope_nomal = -1*self.b/self.a                                                        #法線の傾きを求めてる
+        self.intercept_nomal = tempolary_goal_locate[1]-(self.slope_nomal*tempolary_goal_locate[0])#法線の切片を求めてる
+        if tempolary_goal_locate[1] <= (self.a*tempolary_goal_locate[0]-self.c)/self.b:  # 障害物重心がゴールまでの直線の下にある場合、直線の上側に一時的ゴールを置く
+            tempolary_goal_locate[0]-= (APF.repulsed_area + 2)
+            tempolary_goal_locate[1] = self.slope_nomal*tempolary_goal_locate[0]+self.intercept_nomal
+        elif tempolary_goal_locate[1] > (self.a*tempolary_goal_locate[0]-self.c)/self.b:  # 障害物重心がゴールまでの直線の上にある場合、直線の下側に一時的ゴールを置く
+            tempolary_goal_locate[0]+= (APF.repulsed_area + 2)
+            tempolary_goal_locate[1] = self.slope_nomal*tempolary_goal_locate[0]+self.intercept_nomal
+        return tempolary_goal_locate
          
 
 def main(): 
