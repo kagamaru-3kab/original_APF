@@ -178,8 +178,7 @@ class temporary_goal():
         self.a = locate_goal[1]-locate_vehicles[1]
         self.b = locate_goal[0]-locate_vehicles[0]
         self.c = locate_vehicles[0]*locate_goal[1]-locate_goal[0]*locate_vehicles[1]
-    
-<<<<<<< HEAD
+
     def plot_line_from_start2goal(self,  locate_goal, locate_vehicles): #plot_line which pass start and goal  
         if self.b != 0 and self.a != 0 :
             for x in range(locate_goal[0]):
@@ -252,7 +251,7 @@ class temporary_goal():
         self.find_nearest_obs()
         self.temp_goal = self.set_temporary_goal()
         print("temp_goal")
-=======
+
     def plot_line_from_start2goal(self, a,b,c, locate_goal, locate_vehiles): #plot_line which pass start and goal 
         if b != 0 and a != 0 :
             for x in range(locate_goal[0]):
@@ -309,8 +308,6 @@ class temporary_goal():
             tempolary_goal_locate[1] = self.slope_nomal*tempolary_goal_locate[0]+self.intercept_nomal
         return tempolary_goal_locate
          
->>>>>>> 324c24fd9619487e17bbfeffb7f5c7eeb481a994
-
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
