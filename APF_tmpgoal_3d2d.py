@@ -58,7 +58,7 @@ class calc_APF():
     def __init__(self,vehicles_speed):
         self.dist_v2goal = None     
         self.attracte_k  = 10
-        self.repulse_k   = 0.1
+        self.repulse_k   = 0.3
         self.vehicles_speed = vehicles_speed
         self.repulsed_area = 5
     
@@ -201,18 +201,25 @@ class temporary_goal():
             dist_from_line = [0]*len(locate_obs)
             self.register_id_obs = []
             Denominator = np.sqrt(self.a**2+self.b**2)
+            print("obstacles exist")
+            print("a,b,c",self.a,self.b,self.c)
             for i in range(len(locate_obs)):
                 Numerator = abs(self.a*locate_obs[i][0]+self.b*locate_obs[i][1]+self.c)
+                print("i, denomi, numera",i, Denominator, Numerator)
                 if Numerator != 0:
                     dist_from_line[i] = Numerator/Denominator
                 elif Numerator == 0:
                     dist_from_line[i] = 0
+                print("dist_from_line",i,dist_from_line[i])
                 if dist_from_line[i] <= APF.repulsed_area:
                     self.register_id_obs.append(i)
+                    print("found obs on line")
             if len(self.register_id_obs) == 0:
-                self.register_id_obs = None       
+                self.register_id_obs = None 
+                print("obs exist but not on line")      
         elif len(locate_obs) == 0:
             self.register_id_obs = None
+            print(" obstacles no exist")
         print("ゴールまでの線上のobsは",self.register_id_obs,"個だIDは",self.register_id_obs,"\n")
     
     def find_nearest_obs(self): #find nearest obs on the line from vehicle
@@ -251,7 +258,11 @@ class temporary_goal():
         self.find_nearest_obs()
         self.temp_goal = self.set_temporary_goal()
         print("temp_goal",self.temp_goal)
-         
+
+
+
+
+
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
@@ -260,7 +271,7 @@ def main():
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
             judgereach_finalgoal = True
-        else:
+        elif temp_goal.temp_goal == None:
             target_goal = fgoal.locate_goal
             judgereach_finalgoal = False
         print("target_goal",judgereach_finalgoal)
@@ -280,7 +291,7 @@ def main():
 
 
 if __name__ == '__main__':
-    fgoal = goal([40,50],10)
+    fgoal = goal([50,50],10)
     obs = obstacles([[15,20],[20,20]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
