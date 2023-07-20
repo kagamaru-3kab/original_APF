@@ -134,8 +134,9 @@ class plot_path(): #plot vehicle trajectory
         self.plot_obs(obs.locate_obstacles)
     
     def plot_obs(self, obstacles): #plot set obstacles area
+        r_area = APF.repulsed_area
         for i in range(len(obstacles)):
-            circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius=5, fc ="b", alpha = 0.3)
+            circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius= r_area, fc ="b", alpha = 0.3)
             self.ploting_path.add_patch(circle_obs)
             self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")
     
@@ -177,20 +178,23 @@ class temporary_goal():
     def calc_line_from_start2goal(self, locate_goal, locate_vehicles): #calc coefficient of line which pass start and goal 
         self.a = locate_goal[1]-locate_vehicles[1]
         self.b = locate_vehicles[0]-locate_goal[0]
-        self.c = locate_vehicles[0]*locate_goal[1]-locate_goal[0]*locate_vehicles[1]
+        self.c = locate_vehicles[1]*locate_goal[0]-locate_goal[1]*locate_vehicles[0]
 
-    def plot_line_from_start2goal(self, locate_goal, locate_vehicles): #plot_line which pass start and goal  
+    def draw_line_from_start2goal(self, locate_goal, locate_vehicles): #plot_line which pass start and goal  
+        print("goal,veh1 position in draw line",locate_goal, locate_vehicles)
+        startp = int(locate_vehicles[0])
+        endp = int(locate_goal[0])
         if self.b != 0 and self.a != 0 :
-            for x in range(locate_goal[0]):
+            for x in range(startp, endp):
                 y = (-1*self.a*x-self.c)/self.b
                 path_fig.ploting_path.plot(x, y, ".k")
         elif self.b == 0 and self.a != 0:
-            for y in range(locate_goal[0]):
+            for y in range(startp, endp):
                 x = locate_vehicles[0] 
                 path_fig.ploting_path.plot(x, y, ".k")
 
         elif self.a == 0 and self.b != 0:
-            for x in range(locate_goal[0]):
+            for x in range(startp, endp):
                 y = locate_vehicles[1] 
                 path_fig.ploting_path.plot(x, y, ".k")
         else:
@@ -200,18 +204,18 @@ class temporary_goal():
         if len(locate_obs) != 0:
             dist_from_line = [0]*len(locate_obs)
             self.register_id_obs = []
-            Denominator = np.sqrt(self.a**2+self.b**2)
+            self.Denominator = np.sqrt(self.a**2+self.b**2)
             print("obstacles exist")
-            print("a, b, c, Denominator", self.a, self.b, self.c, Denominator)
+            print("a, b, c, self.Denominator", self.a, self.b, self.c, self.Denominator)
             for i in range(len(locate_obs)):
                 Numerator = abs(self.a*locate_obs[i][0]+self.b*locate_obs[i][1]+self.c)
-                print("i, numera",i, Numerator)
+                #print("i, numera",i, Numerator)
                 if Numerator != 0:
-                    dist_from_line[i] = Numerator/Denominator
+                    dist_from_line[i] = Numerator/self.Denominator
                 elif Numerator == 0:
                     dist_from_line[i] = 0
                 print("id + dist_from_line", i, dist_from_line[i])
-                if dist_from_line[i] <= APF.repulsed_area:
+                if dist_from_line[i] < APF.repulsed_area:
                     self.register_id_obs.append(i)
                     print("found obs on line")
             if len(self.register_id_obs) == 0:
@@ -224,7 +228,7 @@ class temporary_goal():
         if self.register_id_obs == None:
             print("registerID is None")
         else:
-            print("ゴールまでの線上のobsは",len(self.register_id_obs),"個だID\n")
+            print("ゴールまでの線上のobsは",len(self.register_id_obs),"個だ")
     
     def find_nearest_obs(self): #find nearest obs on the line from vehicle
         if self.register_id_obs  != None:
@@ -234,23 +238,54 @@ class temporary_goal():
                 else:
                     if self.nearest_obs[1] > APF.dist_v2obs[id_obs]:
                         self.nearest_obs = [id_obs, APF.dist_v2obs[id_obs]]
-            print("最近傍のobsは[id, dist_fromvehicle]", self.nearest_obs)
+            print("車両最近傍のobsは[id, dist_fromvehicle]", self.nearest_obs)
         else:
             self.nearest_obs = None
-    
+
+    def calc_tempgoal_locate(self, Dfortemp, temp_locate): #ref https://qiita.com/tydesign/items/36b42465b3f5086bd0c5
+        delta_fromobs = 1
+        aD = self.slope_nomal*Dfortemp
+        a2b2 = self.slope_nomal**2 + 1**2
+        rr = APF.repulsed_area**2
+        contain_root = np.sqrt((a2b2*rr) - Dfortemp**2)
+        x1 = (aD - contain_root)/a2b2
+        x1 += temp_locate[0] -delta_fromobs
+        x2 = (aD + contain_root)/a2b2
+        x2 += temp_locate[0] +delta_fromobs
+        y1 = self.slope_nomal*x1 +self.intercept_nomal
+        y2 = self.slope_nomal*x2 +self.intercept_nomal
+        p1 = [x1,y1]
+        p2 = [x2,y2]
+        Numerator_p1 = abs(self.a*p1[0]+self.b*p1[1]+self.c)
+        Numerator_p2 = abs(self.a*p2[0]+self.b*p2[1]+self.c)
+        near_goal_dist = Numerator_p1/self.Denominator
+        if near_goal_dist > Numerator_p2/self.Denominator:
+            return p2
+        else: 
+            return p1 
+        
+        
     def set_temporary_goal(self): #set temporary goal
         if self.nearest_obs !=  None:
             temporary_goal_locate = [obs.locate_obstacles[self.nearest_obs[0]][0],obs.locate_obstacles[self.nearest_obs[0]][1]]
             print("temporary_goal_before_changed",temporary_goal_locate)
             self.slope_nomal = self.b/self.a                                                        #法線の傾きを求めてる
             self.intercept_nomal = temporary_goal_locate[1]-(self.slope_nomal*temporary_goal_locate[0])#法線の切片を求めてる
-            print("slope nomal and intercept",self.slope_nomal, self.intercept_nomal) 
+            Dfortemp = abs(self.slope_nomal*temporary_goal_locate[0]-temporary_goal_locate[1]+self.intercept_nomal)
+            print("slope nomal and intercept",self.slope_nomal, self.intercept_nomal)
+            near_tmpgoal = self.calc_tempgoal_locate(Dfortemp, temporary_goal_locate)
+            temporary_goal_locate = near_tmpgoal          
+            """
             if temporary_goal_locate[1] <= (-1*self.a*temporary_goal_locate[0]-self.c)/self.b:  # 障害物重心がゴールまでの直線の下にある場合、直線の上側に一時的ゴールを置く
-                temporary_goal_locate[0]-= (APF.repulsed_area + 0)
-                temporary_goal_locate[1] = self.slope_nomal*temporary_goal_locate[0]+self.intercept_nomal
+                #temporary_goal_locate[0]-= (APF.repulsed_area + 0)
+                #temporary_goal_locate[1] = self.slope_nomal*temporary_goal_locate[0]+self.intercept_nomal
             elif temporary_goal_locate[1] > (-1*self.a*temporary_goal_locate[0]-self.c)/self.b:  # 障害物重心がゴールまでの直線の上にある場合、直線の下側に一時的ゴールを置く
-                temporary_goal_locate[0]+= (APF.repulsed_area + 0)
-                temporary_goal_locate[1] = self.slope_nomal*temporary_goal_locate[0]+self.intercept_nomal
+                #temporary_goal_locate[0]+= (APF.repulsed_area + 0)
+                #temporary_goal_locate[1] = self.slope_nomal*temporary_goal_locate[0]+self.intercept_nomal
+            circle_tmpgoal = pat.Circle(xy=(temporary_goal_locate[0], temporary_goal_locate[1]), radius=1, fc ="y", alpha = 0.3)
+            path_fig.ploting_path.add_patch(circle_tmpgoal)
+            """
+            path_fig.ploting_path.plot(temporary_goal_locate[0], temporary_goal_locate[1], "xy")
             return temporary_goal_locate
         else:
             print("not need to change goal")
@@ -261,7 +296,7 @@ class temporary_goal():
         if self.nearest_obs != None:
             for x in range(50):
                 y = self.slope_nomal*x + self.intercept_nomal
-                print("nomal x, y: ", x, y)
+                #print("nomal x, y: ", x, y)
                 if y >= 0 or y <= 50:
                     path_fig.ploting_path.plot(x, y,".g")
                 else:
@@ -269,20 +304,21 @@ class temporary_goal():
 
     def integrate_temporarygoal(self,locate_goal,locate_vehicles, locate_obs): #integrate this class function
         self.calc_line_from_start2goal(locate_goal,locate_vehicles)
-        self.plot_line_from_start2goal( locate_goal, locate_vehicles)
+        self.draw_line_from_start2goal( locate_goal, locate_vehicles)
         self.detect_obs_ontheline(locate_obs)
         self.find_nearest_obs()
         self.temp_goal = self.set_temporary_goal()
         self.draw_nomalline()
-        print("temp_goal",self.temp_goal)
+        print("changed_temp_goal",self.temp_goal)
 
 
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
         APF.calc_obs_dist_theta(obs.locate_obstacles, veh1.locate_vehicles)
-        print("if goal dist is None calc once:", APF.dist_v2goal,"\n")
-        print("show all dist from vehicle to every obs:", APF.dist_v2obs,"\n")
+        #print("\nif goal dist is None calc once:", APF.dist_v2goal)
+        print("show all dist from vehicle to every obs:", APF.dist_v2obs)
+        print("veh1 position now",veh1.locate_vehicles,"\n")
         temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
@@ -300,6 +336,7 @@ def main():
         if judgereach_finalgoal:
             APF.dist_v2goal = None
             print("reach tempo goal but not reach final goal")
+            #print("received repforce",APF.repforce)
             return main()
         else:
             print("finish and show 3d")
@@ -308,7 +345,7 @@ def main():
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
-    obs = obstacles([[20,20]])
+    obs = obstacles([[15,20]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
