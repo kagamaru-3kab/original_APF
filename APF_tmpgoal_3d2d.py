@@ -318,7 +318,7 @@ def main():
         APF.calc_obs_dist_theta(obs.locate_obstacles, veh1.locate_vehicles)
         #print("\nif goal dist is None calc once:", APF.dist_v2goal)
         print("show all dist from vehicle to every obs:", APF.dist_v2obs)
-        print("veh1 position now",veh1.locate_vehicles,"\n")
+        print("veh1 position now",veh1.locate_vehicles)
         temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
@@ -345,7 +345,7 @@ def main():
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
-    obs = obstacles([[15,20]])
+    obs = obstacles([[20,20],[30, 40]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
