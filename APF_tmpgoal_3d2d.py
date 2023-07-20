@@ -185,15 +185,18 @@ class temporary_goal():
         startp = int(locate_vehicles[0])
         endp = int(locate_goal[0])
         if self.b != 0 and self.a != 0 :
+            self.typeline = 0
             for x in range(startp, endp):
                 y = (-1*self.a*x-self.c)/self.b
                 path_fig.ploting_path.plot(x, y, ".k")
         elif self.b == 0 and self.a != 0:
+            self.typeline = 1
             for y in range(startp, endp):
                 x = locate_vehicles[0] 
                 path_fig.ploting_path.plot(x, y, ".k")
 
         elif self.a == 0 and self.b != 0:
+            self.typeline = 2
             for x in range(startp, endp):
                 y = locate_vehicles[1] 
                 path_fig.ploting_path.plot(x, y, ".k")
@@ -208,12 +211,26 @@ class temporary_goal():
             print("obstacles exist")
             print("a, b, c, self.Denominator", self.a, self.b, self.c, self.Denominator)
             for i in range(len(locate_obs)):
-                Numerator = abs(self.a*locate_obs[i][0]+self.b*locate_obs[i][1]+self.c)
-                #print("i, numera",i, Numerator)
-                if Numerator != 0:
+                if (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) >= 0 :
+                    if locate_obs[i][0] >= veh1.locate_vehicles[0] and locate_obs[i][0] <= fgoal.locate_goal[0]:
+                        Numerator = abs(self.a*locate_obs[i][0]+self.b*locate_obs[i][1]+self.c)
+                    else:
+                        Numerator = -1
+                elif (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) < 0 :
+                    if locate_obs[i][0] <= veh1.locate_vehicles[0] and locate_obs[i][0] >= fgoal.locate_goal[0]:
+                        Numerator = abs(self.a*locate_obs[i][0]+self.b*locate_obs[i][1]+self.c)
+                    else:
+                        Numerator = -1
+                else:
+                    Numerator = -1
+                print("i, numera",i, Numerator)
+                if Numerator > 0:
                     dist_from_line[i] = Numerator/self.Denominator
                 elif Numerator == 0:
                     dist_from_line[i] = 0
+                else:
+                    print("Numerator is -1 because target_goal is out of range")
+                    dist_from_line[i] = APF.repulsed_area + 1
                 print("id + dist_from_line", i, dist_from_line[i])
                 if dist_from_line[i] < APF.repulsed_area:
                     self.register_id_obs.append(i)
