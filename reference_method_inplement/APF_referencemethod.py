@@ -3,6 +3,7 @@
 経路をグラフに表示
 2D,3Dポテンシャルも表示
 静的障害物に対して一時的なゴールを作成
+
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -328,6 +329,79 @@ class temporary_goal():
         self.draw_nomalline()
         print("changed_temp_goal",self.temp_goal)
 
+class guide_point():
+    def __init__(self):
+        length_precede = 8
+        self.numberofpoints = 4
+        self.interval_points = length_precede/self.numberofpoints
+        self.guide_point = np.zeros((self.numberofpoints,2),dtype= int)
+        print("guide_point_shape",self.guide_point)
+        self.guide_point[0,0] = veh1.locate_vehicles[0]
+        self.guide_point[0,1] = veh1.locate_vehicles[1]
+        temp_goal.calc_line_from_start2goal(fgoal.locate_goal,veh1.locate_vehicles)
+        temp_goal.draw_line_from_start2goal( fgoal.locate_goal, veh1.locate_vehicles)
+        temp_goal.detect_obs_ontheline(obs.locate_obstacles)
+        self.count = 0
+
+    def set_guide_point(self):
+        i = 1
+        self.Denominator = np.sqrt(temp_goal.a**2+temp_goal.b**2)
+        print("do set guide point")
+        while i < self.numberofpoints +1:
+                x, y = APF.route_creater(fgoal.locate_goal, self.guide_point[i-1], obs.locate_obstacles)
+                self.guide_point[i-1,0] = x
+                self.guide_point[i-1,1] = y
+                self.dist_guide2vehicle = np.sqrt((self.guide_point[i-1,0]-veh1.locate_vehicles[0])**2+(self.guide_point[i-1,1]-veh1.locate_vehicles[1])**2)
+                print("now calc guide point numver is",i)
+                if self.dist_guide2vehicle > self.interval_points:
+                    i += 1
+        print("guidepoint locete", self.guide_point)
+        self.count +=1
+        circle_guide1 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
+        circle_guide2 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
+        circle_guide3 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
+        circle_guide4 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
+        path_fig.ploting_path.add_patch(circle_guide1)
+        path_fig.ploting_path.add_patch(circle_guide2)
+        path_fig.ploting_path.add_patch(circle_guide3)
+        path_fig.ploting_path.add_patch(circle_guide4)
+        if self.count > 0:
+            circle_guide1.remove()
+            circle_guide2.remove()
+            circle_guide3.remove()
+            circle_guide4.remove()
+        
+        for i in range(4):            
+                if (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) >= 0 :
+                        if self.guide_point[i,0] >= veh1.locate_vehicles[0] and self.guide_point[i,0] <= fgoal.locate_goal[0]:
+                            Numerator = abs(temp_goal.a*self.guide_point[i,0]+temp_goal.b*self.guide_point[i,1]+temp_goal.c)
+                        else:
+                            Numerator = -1
+                elif (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) < 0 :
+                        if self.guide_point[i,0] <= veh1.locate_vehicles[0] and self.guide_point[i,0] >= fgoal.locate_goal[0]:
+                            Numerator = abs(temp_goal.a*self.guide_point[i,0]+temp_goal.b*self.guide_point[i,1]+temp_goal.c)
+                        else:
+                            Numerator = -1
+                else:
+                    Numerator = -1
+
+                if Numerator != -1:
+                    self.dist_guide2vehicle = Numerator/self.Denominator
+                    if i == 0:
+                        max_dist = self.dist_guide2vehicle
+                    if max_dist < self.dist_guide2vehicle:
+                        max_dist = self.dist_guide2vehicle
+                        max_number = i
+                        self.temp_goal = self.guide_point[i]
+        path_fig.ploting_path.plot(self.temp_goal[0], self.temp_goal[1], "xy")
+        return self.temp_goal
+        
+
+
+
+
+
+
 
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
@@ -336,7 +410,9 @@ def main():
         #print("\nif goal dist is None calc once:", APF.dist_v2goal)
         print("show all dist from vehicle to every obs:", APF.dist_v2obs)
         print("veh1 position now",veh1.locate_vehicles)
-        temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
+        #temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
+        temp_goal.temp_goal = guide.set_guide_point()
+        print(temp_goal.temp_goal)
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
             judgereach_finalgoal = True
@@ -367,4 +443,5 @@ if __name__ == '__main__':
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
     temp_goal = temporary_goal()
+    guide = guide_point()
     main()
