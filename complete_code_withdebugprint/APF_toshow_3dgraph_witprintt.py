@@ -2,7 +2,7 @@
 Complete
 デバック用print多数
 経路をグラフに表示
-3Dポテンシャルも表示
+2D,3Dポテンシャルも表示
 """
 import numpy as np
 from matplotlib import pyplot as plt
