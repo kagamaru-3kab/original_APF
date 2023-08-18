@@ -303,7 +303,7 @@ class temporary_goal():
             circle_tmpgoal = pat.Circle(xy=(temporary_goal_locate[0], temporary_goal_locate[1]), radius=1, fc ="y", alpha = 0.3)
             path_fig.ploting_path.add_patch(circle_tmpgoal)
             """
-            path_fig.ploting_path.plot(temporary_goal_locate[0], temporary_goal_locate[1], "xy")
+            path_fig.ploting_path.plot([0], temporary_goal_locate[1], "xy")
             return temporary_goal_locate
         else:
             print("not need to change goal")
@@ -331,10 +331,10 @@ class temporary_goal():
 
 class guide_point():
     def __init__(self):
-        length_precede = 8
+        self.length_precede = 8
         self.numberofpoints = 4
-        self.interval_points = length_precede/self.numberofpoints
-        self.guide_point = np.zeros((self.numberofpoints,2),dtype= int)
+        self.interval_points = self.length_precede/self.numberofpoints
+        self.guide_point = np.zeros((self.numberofpoints,2))
         print("guide_point_shape",self.guide_point)
         self.guide_point[0,0] = veh1.locate_vehicles[0]
         self.guide_point[0,1] = veh1.locate_vehicles[1]
@@ -342,25 +342,32 @@ class guide_point():
         temp_goal.draw_line_from_start2goal( fgoal.locate_goal, veh1.locate_vehicles)
         temp_goal.detect_obs_ontheline(obs.locate_obstacles)
         self.count = 0
+        self.temp_goal_point = fgoal.locate_goal
+        
 
     def set_guide_point(self):
         i = 1
+        self.interval_points = self.length_precede/self.numberofpoints
         self.Denominator = np.sqrt(temp_goal.a**2+temp_goal.b**2)
-        print("do set guide point")
+        #print("do set guide point")
         while i < self.numberofpoints +1:
                 x, y = APF.route_creater(fgoal.locate_goal, self.guide_point[i-1], obs.locate_obstacles)
-                self.guide_point[i-1,0] = x
-                self.guide_point[i-1,1] = y
+                #print(x,y,self.guide_point)
+                self.guide_point[i-1,0] = x+self.guide_point[i-1,0]
+                self.guide_point[i-1,1] = y+self.guide_point[i-1,1]
+                #print("self.guide_point",self.guide_point[i-1,0],self.guide_point[i-1,1])
                 self.dist_guide2vehicle = np.sqrt((self.guide_point[i-1,0]-veh1.locate_vehicles[0])**2+(self.guide_point[i-1,1]-veh1.locate_vehicles[1])**2)
-                print("now calc guide point numver is",i)
+                
                 if self.dist_guide2vehicle > self.interval_points:
+                    print("now calc guide point number is",i-1,"dist,x,y",self.dist_guide2vehicle,x,y)
                     i += 1
+                    self.interval_points+=2
         print("guidepoint locete", self.guide_point)
-        self.count +=1
-        circle_guide1 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
-        circle_guide2 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
-        circle_guide3 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
-        circle_guide4 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="r")
+        
+        circle_guide1 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
+        circle_guide2 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
+        circle_guide3 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
+        circle_guide4 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
         path_fig.ploting_path.add_patch(circle_guide1)
         path_fig.ploting_path.add_patch(circle_guide2)
         path_fig.ploting_path.add_patch(circle_guide3)
@@ -370,6 +377,7 @@ class guide_point():
             circle_guide2.remove()
             circle_guide3.remove()
             circle_guide4.remove()
+            self.count +=1
         
         for i in range(4):            
                 if (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) >= 0 :
@@ -392,14 +400,15 @@ class guide_point():
                     if max_dist < self.dist_guide2vehicle:
                         max_dist = self.dist_guide2vehicle
                         max_number = i
-                        self.temp_goal = self.guide_point[i]
-        path_fig.ploting_path.plot(self.temp_goal[0], self.temp_goal[1], "xy")
-        return self.temp_goal
+                        self.temp_goal_point = self.guide_point[i]
+                        print("tempgoal",self.temp_goal_point)
+        if self.temp_goal_point == None:
+            self.temp_goal_point = fgoal.locate_goal
+        else:
+            self.temp_goal_point = self.temp_goal_point[0], self.temp_goal_point[1]
+            path_fig.ploting_path.plot(self.temp_goal_point[0], self.temp_goal_point[1], "xr")
+        return self.temp_goal_point
         
-
-
-
-
 
 
 
@@ -438,7 +447,7 @@ def main():
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
-    obs = obstacles([[20,20],[30, 40]])
+    obs = obstacles([[20,22]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
