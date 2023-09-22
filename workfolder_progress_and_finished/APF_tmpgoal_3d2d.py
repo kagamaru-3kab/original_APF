@@ -286,7 +286,7 @@ class temporary_goal():
             Dfortemp = abs(self.slope_nomal*temporary_goal_locate[0]-temporary_goal_locate[1]+self.intercept_nomal)
             near_tmpgoal = self.calc_tempgoal_locate(Dfortemp, temporary_goal_locate)
             temporary_goal_locate = near_tmpgoal          
-            path_fig.ploting_path.plot(temporary_goal_locate[0], temporary_goal_locate[1], "xy")
+            path_fig.ploting_path.plot(temporary_goal_locate[0], temporary_goal_locate[1], "xr")
             return temporary_goal_locate
         else:
             print("not need to change goal")
@@ -314,10 +314,12 @@ class temporary_goal():
 
 
 def main(): 
+    animation_array = []
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
         APF.calc_obs_dist_theta(obs.locate_obstacles, veh1.locate_vehicles)
         temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
+        
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
             judgereach_finalgoal = True
@@ -329,6 +331,7 @@ def main():
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             path_fig.plot_vehicle(veh1.locate_vehicles)
+            animation_array.append(path_fig.ploting_path)
             plt.pause(0.002)
         if judgereach_finalgoal:
             APF.dist_v2goal = None
