@@ -366,25 +366,8 @@ class guide_point():
                     i += 1
         print("guidepoint locete\n", self.guide_point)
 
-        """
-        circle_guide1 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        circle_guide2 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        circle_guide3 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        circle_guide4 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        path_fig.ploting_path.add_patch(circle_guide1)
-        path_fig.ploting_path.add_patch(circle_guide2)
-        path_fig.ploting_path.add_patch(circle_guide3)
-        path_fig.ploting_path.add_patch(circle_guide4)
-        plt.cla()
-        if self.count > 0:
-            circle_guide1.remove()
-            circle_guide2.remove()
-            circle_guide3.remove()
-            circle_guide4.remove()
-            self.count +=1
-        """
 
-        for i in range(self.numberofpoints-1,-1,-1): 
+        for i in range(self.numberofpoints-1,-1,-1): #difference version /APF_referencemethod_reverse.py
                 print("range i num",i)           
                 if (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) >= 0 :
                         if self.guide_point[i,0] >= veh1.locate_vehicles[0] and self.guide_point[i,0] <= fgoal.locate_goal[0]:

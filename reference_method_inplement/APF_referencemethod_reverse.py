@@ -344,87 +344,67 @@ class guide_point():
         temp_goal.detect_obs_ontheline(obs.locate_obstacles)
         self.count = 0
         self.temp_goal_point = fgoal.locate_goal
-        
+
+    def judge_reaching_fgoal(self, guide):
+        flag = False
+        for i in range(self.numberofpoints):
+            x = (fgoal.locate_goal[0]-guide[i,0])**2
+            y = (fgoal.locate_goal[1]-guide[i,1])**2
+            dist = np.sqrt(x+y)
+            if dist < fgoal.diameter_size:
+                print("somewhere precede point reach final goal")
+                flag = True
+        return flag
 
     def set_guide_point(self):
-        i = 1
+        i = 0
         self.Denominator = np.sqrt(temp_goal.a**2+temp_goal.b**2)
         update_interval = self.interval_points
-        #print("do set guide point")
-        while i < self.numberofpoints + 1 :
-                x, y = APF.route_creater(fgoal.locate_goal, self.guide_point[i-1], obs.locate_obstacles)
+        print("do set guide point")
+        while i < self.numberofpoints  :
+                x, y = APF.route_creater(fgoal.locate_goal, self.guide_point[i], obs.locate_obstacles)
                 #print(x,y,self.guide_point)
-                self.guide_point[i-1,0] = x+self.guide_point[i-1,0]
-                self.guide_point[i-1,1] = y+self.guide_point[i-1,1]
+                self.guide_point[i,0] = x+self.guide_point[i,0]
+                self.guide_point[i,1] = y+self.guide_point[i,1]
                 #print("self.guide_point",self.guide_point[i-1,0],self.guide_point[i-1,1])
-                self.dist_guide2vehicle = np.sqrt((self.guide_point[i-1,0]-veh1.locate_vehicles[0])**2+(self.guide_point[i-1,1]-veh1.locate_vehicles[1])**2)
+                self.dist_guide2vehicle = np.sqrt((self.guide_point[i,0]-veh1.locate_vehicles[0])**2+(self.guide_point[i,1]-veh1.locate_vehicles[1])**2)
+                self.dist_guide2fgoal = np.sqrt((self.guide_point[i,0]-fgoal.locate_goal[0])**2+(self.guide_point[i,1]-fgoal.locate_goal[1])**2)
                 
-                if self.dist_guide2vehicle > update_interval:
-                    print("now calc guide point number is",i-1,"dist,x,y",self.dist_guide2vehicle,self.guide_point[i-1,0], self.guide_point[i-1,1])
+                if self.dist_guide2vehicle > update_interval and APF.dist_v2goal > self.dist_guide2fgoal :
+                    print("distv2fgoal - distguide2fgoal",APF.dist_v2goal - self.dist_guide2fgoal)
+                    print("now calc guide point number is",i,"dist,x,y",self.dist_guide2vehicle,self.guide_point[i,0], self.guide_point[i,1])
                     update_interval = update_interval + self.interval_points
-                    path_fig.ploting_path.plot(self.guide_point[i-1,0], self.guide_point[i-1,1], "*y")
+                    path_fig.ploting_path.plot(self.guide_point[i,0], self.guide_point[i,1], "*y")
                     i += 1
         print("guidepoint locete\n", self.guide_point)
 
-        """
-        circle_guide1 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        circle_guide2 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        circle_guide3 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        circle_guide4 = pat.Circle(xy=(self.guide_point[0,0], self.guide_point[0,1]), radius=1, fc ="b")
-        path_fig.ploting_path.add_patch(circle_guide1)
-        path_fig.ploting_path.add_patch(circle_guide2)
-        path_fig.ploting_path.add_patch(circle_guide3)
-        path_fig.ploting_path.add_patch(circle_guide4)
-        plt.cla()
-        if self.count > 0:
-            circle_guide1.remove()
-            circle_guide2.remove()
-            circle_guide3.remove()
-            circle_guide4.remove()
-            self.count +=1
-        """
+        for i in range(self.numberofpoints): 
+            #print("range num",i)           
+            
+            Numerator = abs(temp_goal.a*self.guide_point[i,0]+temp_goal.b*self.guide_point[i,1]+temp_goal.c)              
+            self.dist_guide2line = Numerator/self.Denominator
+            if i == 0:
+                max_dist = self.dist_guide2line
+                max_number = i
+            elif i > 0:
+                if max_dist <= self.dist_guide2line:
+                    max_dist = self.dist_guide2line
+                    max_number = i
 
-        for i in range(self.numberofpoints-1,-1,-1): 
-                print("range i num",i)           
-                if (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) >= 0 :
-                        if self.guide_point[i,0] >= veh1.locate_vehicles[0] and self.guide_point[i,0] <= fgoal.locate_goal[0]:
-                            Numerator = abs(temp_goal.a*self.guide_point[i,0]+temp_goal.b*self.guide_point[i,1]+temp_goal.c)
-                        else:
-                            Numerator = -1
-                            print("first")
-                elif (fgoal.locate_goal[0]-veh1.locate_vehicles[0]) < 0 :
-                        if self.guide_point[i,0] <= veh1.locate_vehicles[0] and self.guide_point[i,0] >= fgoal.locate_goal[0]:
-                            Numerator = abs(temp_goal.a*self.guide_point[i,0]+temp_goal.b*self.guide_point[i,1]+temp_goal.c)
-                        else:
-                            Numerator = -1
-                            print("second")
-                else:
-                    Numerator = -1
-                    print("third")
+            if i == self.numberofpoints-1:
+                flag = self.judge_reaching_fgoal(self.guide_point) 
+        if flag:
+            self.temp_goal_point = None
+            path_fig.ploting_path.plot(fgoal.locate_goal[0], fgoal.locate_goal[1], "xr")
+        else:       
+            self.temp_goal_point = self.guide_point[max_number]
+            print("tempgoal,maxdist,max_num",self.temp_goal_point,max_dist,max_number)
+            path_fig.ploting_path.plot(self.temp_goal_point[0], self.temp_goal_point[1], "xr")
 
-                if Numerator > 0:
-                    self.dist_guide2line = Numerator/self.Denominator
-                    print("i incaseof num>0",i,"numerator",Numerator)
-                    if i == self.numberofpoints-1:
-                        max_dist = self.dist_guide2line
-                        max_number = i
-                    if max_dist < self.dist_guide2line:
-                        max_dist = self.dist_guide2line
-                        max_number = i
-                elif Numerator == 0:
-                    max_number = self.numberofpoints -1
-                    print("self.temp_goal_point is the same point of last precede point")
-                else:
-                    print("Numerator is <0 Error")
-
-        self.temp_goal_point = self.guide_point[max_number]
-        print("tempgoal",self.temp_goal_point)
         if Numerator == -1:
             self.temp_goal_point = fgoal.locate_goal
-            print("nume is -1 so set finalgoal")
-        else:
-            path_fig.ploting_path.plot(self.temp_goal_point[0], self.temp_goal_point[1], "xr")
-        print("self.temp_goal_point  comforming",self.temp_goal_point)
+            print("numerator is -1 so set finalgoal")
+        #print("self.temp_goal_point  comforming",self.temp_goal_point)
         return self.temp_goal_point
         
 
@@ -435,11 +415,11 @@ def main():
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
         APF.calc_obs_dist_theta(obs.locate_obstacles, veh1.locate_vehicles)
         #print("\nif goal dist is None calc once:", APF.dist_v2goal)
-        print("show all dist from vehicle to every obs:", APF.dist_v2obs)
-        print("veh1 position now",veh1.locate_vehicles)
+        #print("show all dist from vehicle to every obs:", APF.dist_v2obs)
+        #print("veh1 position now",veh1.locate_vehicles)
         #temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
         temp_goal.temp_goal = guide.set_guide_point()
-        print("temp_goal.temp_goal in main func is ",temp_goal.temp_goal)
+        #print("temp_goal.temp_goal in main func is ",temp_goal.temp_goal)
         if np.all(temp_goal.temp_goal != None):
             target_goal = temp_goal.temp_goal
             judgereach_finalgoal = True
