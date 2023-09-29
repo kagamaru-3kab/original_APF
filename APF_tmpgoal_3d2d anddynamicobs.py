@@ -283,7 +283,7 @@ class temporary_goal():
             Dfortemp = abs(self.slope_nomal*temporary_goal_locate[0]-temporary_goal_locate[1]+self.intercept_nomal)
             near_tmpgoal = self.calc_tempgoal_locate(Dfortemp, temporary_goal_locate)
             temporary_goal_locate = near_tmpgoal          
-            path_fig.ploting_path.plot(temporary_goal_locate[0], temporary_goal_locate[1], "xy")
+            path_fig.ploting_path.plot(temporary_goal_locate[0], temporary_goal_locate[1], "xr")
             return temporary_goal_locate
         else:
             print("not need to change goal")

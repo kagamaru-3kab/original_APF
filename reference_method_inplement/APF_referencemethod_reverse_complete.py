@@ -1,5 +1,5 @@
 """
-
+complete
 経路をグラフに表示
 2D,3Dポテンシャルも表示
 静的障害物に対して一時的なゴールを作成
@@ -344,7 +344,8 @@ class guide_point():
         temp_goal.detect_obs_ontheline(obs.locate_obstacles)
         self.count = 0
         self.temp_goal_point = fgoal.locate_goal
-
+    
+    """
     def judge_reaching_fgoal(self, guide):
         flag = False
         for i in range(self.numberofpoints):
@@ -355,9 +356,11 @@ class guide_point():
                 print("somewhere precede point reach final goal")
                 flag = True
         return flag
+    """
 
     def set_guide_point(self):
         i = 0
+        flagtostopprecede = False
         self.Denominator = np.sqrt(temp_goal.a**2+temp_goal.b**2)
         update_interval = self.interval_points
         print("do set guide point")
@@ -368,10 +371,15 @@ class guide_point():
                 self.guide_point[i,1] = y+self.guide_point[i,1]
                 #print("self.guide_point",self.guide_point[i-1,0],self.guide_point[i-1,1])
                 self.dist_guide2vehicle = np.sqrt((self.guide_point[i,0]-veh1.locate_vehicles[0])**2+(self.guide_point[i,1]-veh1.locate_vehicles[1])**2)
-                self.dist_guide2fgoal = np.sqrt((self.guide_point[i,0]-fgoal.locate_goal[0])**2+(self.guide_point[i,1]-fgoal.locate_goal[1])**2)
+                self.dist_guide2fgoal = np.sqrt((fgoal.locate_goal[0]-self.guide_point[i,0])**2+(fgoal.locate_goal[1]-self.guide_point[i,1])**2)
+                self.dist_v2finalgoal = np.sqrt((fgoal.locate_goal[0]-veh1.locate_vehicles[0])**2+(fgoal.locate_goal[1]-veh1.locate_vehicles[1])**2)
+
                 
-                if self.dist_guide2vehicle > update_interval and APF.dist_v2goal > self.dist_guide2fgoal :
-                    print("distv2fgoal - distguide2fgoal",APF.dist_v2goal - self.dist_guide2fgoal)
+                if self.dist_guide2fgoal < self.interval_points:
+                    flagtostopprecede = True
+                
+                if self.dist_guide2vehicle > update_interval and self.dist_v2finalgoal > self.dist_guide2fgoal :
+                    print("distv2fgoal - distguide2fgoal",self.dist_v2finalgoal - self.dist_guide2fgoal)
                     print("now calc guide point number is",i,"dist,x,y",self.dist_guide2vehicle,self.guide_point[i,0], self.guide_point[i,1])
                     update_interval = update_interval + self.interval_points
                     path_fig.ploting_path.plot(self.guide_point[i,0], self.guide_point[i,1], "*y")
@@ -390,10 +398,7 @@ class guide_point():
                 if max_dist <= self.dist_guide2line:
                     max_dist = self.dist_guide2line
                     max_number = i
-
-            if i == self.numberofpoints-1:
-                flag = self.judge_reaching_fgoal(self.guide_point) 
-        if flag:
+        if flagtostopprecede:
             self.temp_goal_point = None
             path_fig.ploting_path.plot(fgoal.locate_goal[0], fgoal.locate_goal[1], "xr")
         else:       
@@ -406,8 +411,6 @@ class guide_point():
             print("numerator is -1 so set finalgoal")
         #print("self.temp_goal_point  comforming",self.temp_goal_point)
         return self.temp_goal_point
-        
-
 
 
 def main(): 
