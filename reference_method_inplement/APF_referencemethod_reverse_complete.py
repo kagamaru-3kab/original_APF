@@ -103,7 +103,37 @@ class calc_APF():
         for id in range(len(self.repforce)):
             self.total_pot = self.total_pot + self.repforce[id]
         return self.total_pot
-   
+    
+    def detect_tairyuu(self, partialdiffer_x, partialdiffer_y):
+        if np.sign(partialdiffer_x) == 1:
+            flagx = 1
+            print("flagx =1")
+        elif np.sign(partialdiffer_x) == -1:
+            flagx = 0
+            print("flagx =0")
+        if np.sign(partialdiffer_y) == 1:
+            flagy = 1
+        elif np.sign(partialdiffer_y) == -1:
+            flagy = 0
+        tairyux = 0
+        tairyuy = 0
+        print("before,after",self.before_flagx,flagx)
+        if self.before_flagx != flagx:
+            self.countx += 1 
+            print("countx ===", self.countx)
+            if self.countx >= 20:
+                print("x ga tairyuu")
+                tairyux = 1
+        if self.before_flagy != flagy:
+            self.county += 1
+            if self.county >= 20:
+                print("y ga tairyuu")
+                tairyuy = 1
+        if tairyux == 1 and tairyuy == 1:
+            print("tairyuuuuuu")
+        self.before_flagx = flagx
+        self.before_flagy = flagy
+
     def route_creater(self, locate_goal, locate_vehicles, locate_obs): #route_creater calculates movement amount from partitial differential of potential 
         current_potential = self.calc_sum_potentialforce(locate_goal, locate_vehicles, locate_obs)
         delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0]+self.vehicles_speed, locate_vehicles[1]], locate_obs)
@@ -113,6 +143,7 @@ class calc_APF():
         synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
         partialdiffer_x /=synthesis_v/self.vehicles_speed*-1   #正規化らしい
         partialdiffer_y /=synthesis_v/self.vehicles_speed*-1
+        
         return partialdiffer_x, partialdiffer_y
 
 class plot_path(): #plot vehicle trajectory
@@ -448,7 +479,7 @@ def main():
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
-    obs = obstacles([[20,25]])
+    obs = obstacles([[25,25]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
