@@ -391,6 +391,7 @@ class guide_point():
 
     def set_guide_point(self):
         i = 0
+        count_calc_guidepoint = 0
         flagtostopprecede = False
         self.Denominator = np.sqrt(temp_goal.a**2+temp_goal.b**2)
         update_interval = self.interval_points
@@ -404,17 +405,23 @@ class guide_point():
                 self.dist_guide2vehicle = np.sqrt((self.guide_point[i,0]-veh1.locate_vehicles[0])**2+(self.guide_point[i,1]-veh1.locate_vehicles[1])**2)
                 self.dist_guide2fgoal = np.sqrt((fgoal.locate_goal[0]-self.guide_point[i,0])**2+(fgoal.locate_goal[1]-self.guide_point[i,1])**2)
                 self.dist_v2finalgoal = np.sqrt((fgoal.locate_goal[0]-veh1.locate_vehicles[0])**2+(fgoal.locate_goal[1]-veh1.locate_vehicles[1])**2)
+                #print("countcalc_guideponint",count_calc_guidepoint)
+                count_calc_guidepoint += 1
+                if count_calc_guidepoint > 1000:
+                    print("guidepoints are stuck")
+                    self.guide_point[i,0] = 0.1+self.guide_point[i,0]
+                    count_calc_guidepoint = 0
 
-                
                 if self.dist_guide2fgoal < self.interval_points:
                     flagtostopprecede = True
                 
                 if self.dist_guide2vehicle > update_interval and self.dist_v2finalgoal > self.dist_guide2fgoal :
-                    print("distv2fgoal - distguide2fgoal",self.dist_v2finalgoal - self.dist_guide2fgoal)
+                    #print("distv2fgoal - distguide2fgoal",self.dist_v2finalgoal - self.dist_guide2fgoal)
                     print("now calc guide point number is",i,"dist,x,y",self.dist_guide2vehicle,self.guide_point[i,0], self.guide_point[i,1])
                     update_interval = update_interval + self.interval_points
                     path_fig.ploting_path.plot(self.guide_point[i,0], self.guide_point[i,1], "*y")
                     i += 1
+                    count_calc_guidepoint = 0
         print("guidepoint locete\n", self.guide_point)
 
         for i in range(self.numberofpoints): 
