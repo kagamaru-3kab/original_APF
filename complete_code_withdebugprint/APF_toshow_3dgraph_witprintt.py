@@ -194,7 +194,7 @@ def main():
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
-    obs = obstacles([[15,20],[20,20]])
+    obs = obstacles([[17,20]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
