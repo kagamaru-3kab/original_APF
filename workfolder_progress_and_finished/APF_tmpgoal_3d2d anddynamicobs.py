@@ -31,6 +31,18 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         self.locate_obstacles = obstacles
+    
+    def update_locate_obs(self):
+        """   
+        Content: update dynamic obstacles 
+        obstacles: ID and position array([x1,y1][x2,y2]..)
+        """
+        dynamic_obs_id = [1]
+        for i in range(len(self.locate_obstacles)):
+            for d in range(len(dynamic_obs_id)): 
+               if self.locate_obstacles[i] == d:
+                   self.locate_obstacles[i][0] += 1
+                   self.locate_obstacles[i][1] += 1
         
 class vehicles():
     def __init__(self, init_locate): 
