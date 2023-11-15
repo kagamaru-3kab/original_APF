@@ -9,8 +9,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import patches as pat
 from matplotlib import cm
-from matplotlib.animation import FuncAnimation
-
 
 class goal():                          
     def __init__(self, locate, area):
@@ -40,10 +38,10 @@ class obstacles():
         Content: update location dynamic obstacles ,assign dynamic obs id and displacement
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
-        dynamic_obs_id = [1]
+        dynamic_obs_id = []
 
         for d in range(len(dynamic_obs_id)): 
-           self.locate_obstacles[d][0] += 0.01
+           self.locate_obstacles[d][0] += -0.01
            self.locate_obstacles[d][1] += 0.01
         
 class vehicles():
@@ -136,22 +134,17 @@ class plot_path(): #plot vehicle trajectory
         self.ploting_path.set_ylabel('Y-distance: m')
         self.goal_position = goal_position
         self.start_position = start_position
-        self._initialize_fig(start_position, goal_position)
+        self._initialize_fig()
 
-
-    def _initialize_fig(self, start_position, goal_position):
+    def _initialize_fig(self):
         self.graph_range = [0, 60]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
-        self.ploting_path.plot(start_position[0], start_position[1], "*r")
-        self.ploting_path.plot(goal_position[0], goal_position[1], "*b")
-        circle_goal = pat.Circle(xy=(goal_position[0], goal_position[1]), radius=2, fc ="y")
+        self.ploting_path.plot(self.start_position[0], self.start_position[1], "*r")
+        self.ploting_path.plot(self.goal_position[0], self.goal_position[1], "*b")
+        circle_goal = pat.Circle(xy=(self.goal_position[0], self.goal_position[1]), radius=2, fc ="y")
         self.ploting_path.add_patch(circle_goal)
         self.plot_obs(obs.locate_obstacles)
-        
-    def refresh_gragh_update(self):
-        plt.cla()
-        self._initialize_fig(self.start_position, self.goal_position)
     
     def plot_obs(self, obstacles): #plot set obstacles area
         r_area = APF.repulsed_area
@@ -296,8 +289,7 @@ class temporary_goal():
             return p2
         else: 
             return p1 
-        
-        
+            
     def set_temporary_goal(self): #set temporary goal
         if self.nearest_obs !=  None:
             temporary_goal_locate = [obs.locate_obstacles[self.nearest_obs[0]][0],obs.locate_obstacles[self.nearest_obs[0]][1]]
@@ -317,7 +309,6 @@ class temporary_goal():
         if self.nearest_obs != None:
             for x in range(50):
                 y = self.slope_nomal*x + self.intercept_nomal
-                #print("nomal x, y: ", x, y)
                 if y >= 0 or y <= 50:
                     path_fig.ploting_path.plot(x, y,".g")
                 else:
@@ -348,15 +339,17 @@ def main():
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             path_fig.plot_vehicle(veh1.locate_vehicles)
-            path_fig.refresh_gragh_update()
+            obs.update_locate_obs()
+            #path_fig._initialize_fig()
             plt.pause(0.002)
+            #plt.cla()     
         if judgereach_finalgoal:
             APF.dist_v2goal = None
             print("reach tempo goal but not reach final goal")
             return main()
         else:
             print("finish and show 3d")
-            path_fig.plot_3d_potential()
+            #path_fig.plot_3d_potential()
 
 
 if __name__ == '__main__':
@@ -367,3 +360,4 @@ if __name__ == '__main__':
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
     temp_goal = temporary_goal()
     main()
+ 
