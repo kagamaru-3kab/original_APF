@@ -1,10 +1,11 @@
 """
-gif
+proposal
+gifを入れる予定だったが，うまくいかないので跡だけ残す
 経路をグラフに表示
 3Dポテンシャルも表示
 静的障害物に対して一時的なゴールを作成
 dynamic obs を作成
-https://sabopy.com/py/matplotlib-animation-104/
+
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -128,6 +129,7 @@ class calc_APF():
 class plot_path(): #plot vehicle trajectory
     """
     set param  ploting path
+    search about matplotlib with Internet
     """
     def __init__(self, start_position , goal_position):
         self.fig = plt.figure(figsize=(7,7))
@@ -344,18 +346,20 @@ def main():
             obs.update_locate_obs()
             path_fig._initialize_fig()
             anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
-            animation_array.append(anime_array_source)
-            plt.pause(0.002)    
+            #animation_array.append(anime_array_source)
+            plt.pause(0.02)    
+            plt.cla()
         if judgereach_finalgoal:
             APF.dist_v2goal = None
             print("reach tempo goal but not reach final goal")
-            animation_array.append(anime_array_source)
-            plt.pause(0.002)  
+            #animation_array.append(anime_array_source)
+            plt.pause(0.02)  
+            plt.cla()
             return main()
         else:
             print("finish and show 3d")
             anime_gif = ani.ArtistAnimation(path_fig.fig, animation_array, interval=100)
-            anime_gif.save("proposal_gif2.gif", writer="pillow")
+            #anime_gif.save("proposal_gif2.gif", writer="pillow")
             #path_fig.plot_3d_potential()
 
 

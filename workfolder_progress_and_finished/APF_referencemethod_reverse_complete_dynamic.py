@@ -1,9 +1,9 @@
 """
-complete
+conventional method(reference)
 経路をグラフに表示
 2D,3Dポテンシャルも表示
 静的障害物に対して一時的なゴールを作成
-
+dynamicbs を作成
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -32,6 +32,17 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         self.locate_obstacles = obstacles
+    
+    def update_locate_obs(self):
+        """   
+        Content: update location dynamic obstacles ,assign dynamic obs id and displacement
+        obstacles: ID and position array([x1,y1][x2,y2]..)
+        """
+        dynamic_obs_id = [0]
+
+        for d in range(len(dynamic_obs_id)): 
+           self.locate_obstacles[d][0] += -0.1
+           self.locate_obstacles[d][1] += 0.01
         
 class vehicles():
     def __init__(self, init_locate): 
@@ -104,7 +115,7 @@ class calc_APF():
             self.total_pot = self.total_pot + self.repforce[id]
         return self.total_pot
     
-    def detect_tairyuu(self, partialdiffer_x, partialdiffer_y):
+    def detect_tairyuu(self, partialdiffer_x, partialdiffer_y):# detect that vehicles stucking
         if np.sign(partialdiffer_x) == 1:
             flagx = 1
             print("flagx =1")
@@ -149,19 +160,24 @@ class calc_APF():
 class plot_path(): #plot vehicle trajectory
     """
     set param  ploting path
+    search about matplotlib with Internet
     """
     def __init__(self, start_position , goal_position):
-        fig = plt.figure(figsize=(7,7))
-        self.ploting_path = fig.add_subplot(111)
+        self.fig = plt.figure(figsize=(7,7))
+        self.ploting_path = self.fig.add_subplot(111)
         self.ploting_path.set_xlabel('X-distance: m')
         self.ploting_path.set_ylabel('Y-distance: m')
+        self.goal_position = goal_position
+        self.start_position = start_position
+        self._initialize_fig()
+
+    def _initialize_fig(self):
         self.graph_range = [0, 60]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
-        self.goal_position = goal_position
-        self.ploting_path.plot(start_position[0], start_position[1], "*r")
-        self.ploting_path.plot(goal_position[0], goal_position[1], "*b")
-        circle_goal = pat.Circle(xy=(goal_position[0], goal_position[1]), radius=2, fc ="y")
+        self.ploting_path.plot(self.start_position[0], self.start_position[1], "*r")
+        self.ploting_path.plot(self.goal_position[0], self.goal_position[1], "*b")
+        circle_goal = pat.Circle(xy=(self.goal_position[0], self.goal_position[1]), radius=2, fc ="y")
         self.ploting_path.add_patch(circle_goal)
         self.plot_obs(obs.locate_obstacles)
     
@@ -324,16 +340,6 @@ class temporary_goal():
             #print("slope nomal and intercept",self.slope_nomal, self.intercept_nomal)
             near_tmpgoal = self.calc_tempgoal_locate(Dfortemp, temporary_goal_locate)
             temporary_goal_locate = near_tmpgoal          
-            """
-            if temporary_goal_locate[1] <= (-1*self.a*temporary_goal_locate[0]-self.c)/self.b:  # 障害物重心がゴールまでの直線の下にある場合、直線の上側に一時的ゴールを置く
-                #temporary_goal_locate[0]-= (APF.repulsed_area + 0)
-                #temporary_goal_locate[1] = self.slope_nomal*temporary_goal_locate[0]+self.intercept_nomal
-            elif temporary_goal_locate[1] > (-1*self.a*temporary_goal_locate[0]-self.c)/self.b:  # 障害物重心がゴールまでの直線の上にある場合、直線の下側に一時的ゴールを置く
-                #temporary_goal_locate[0]+= (APF.repulsed_area + 0)
-                #temporary_goal_locate[1] = self.slope_nomal*temporary_goal_locate[0]+self.intercept_nomal
-            circle_tmpgoal = pat.Circle(xy=(temporary_goal_locate[0], temporary_goal_locate[1]), radius=1, fc ="y", alpha = 0.3)
-            path_fig.ploting_path.add_patch(circle_tmpgoal)
-            """
             path_fig.ploting_path.plot([0], temporary_goal_locate[1], "xy")
             return temporary_goal_locate
         else:
@@ -362,6 +368,16 @@ class temporary_goal():
 
 
 class guide_point():
+    """
+    Content: implement reference method on paper named Energy Efficient Local Path Planning Algorithm
+    Based on Predictive Artificial Potential Field
+
+    self.length_precede : max precede distance
+    self.numberofpoints : number of precede points
+    self.interval_points : interval each points
+    self.guide_point : contain points location
+    self.guide_point[0,0] self.guide_point[0,1] : initial location 
+    """
     def __init__(self):
         self.length_precede = 12
         self.numberofpoints = 4
@@ -376,20 +392,8 @@ class guide_point():
         self.count = 0
         self.temp_goal_point = fgoal.locate_goal
     
-    """
-    def judge_reaching_fgoal(self, guide):
-        flag = False
-        for i in range(self.numberofpoints):
-            x = (fgoal.locate_goal[0]-guide[i,0])**2
-            y = (fgoal.locate_goal[1]-guide[i,1])**2
-            dist = np.sqrt(x+y)
-            if dist < fgoal.diameter_size:
-                print("somewhere precede point reach final goal")
-                flag = True
-        return flag
-    """
 
-    def set_guide_point(self):
+    def set_guide_point(self):#calc location of precede points
         i = 0
         count_calc_guidepoint = 0
         flagtostopprecede = False
@@ -472,11 +476,15 @@ def main():
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal    
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
+            obs.update_locate_obs()
+            path_fig._initialize_fig()
             path_fig.plot_vehicle(veh1.locate_vehicles)
             plt.pause(0.02)
+            plt.cla()
         if judgereach_finalgoal:
             APF.dist_v2goal = None
             plt.pause(0.02)
+            plt.cla()
             print("reach tempo goal but not reach final goal")
             #print("received repforce",APF.repforce)
             return main()
