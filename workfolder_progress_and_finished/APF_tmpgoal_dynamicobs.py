@@ -1,16 +1,17 @@
 """
-<<<<<<< HEAD:APF_tmpgoal_3d2d.py
-=======
-complete
->>>>>>> f9087f2d53ed69e7f614fe2e0d470ea2f3f94143:workfolder_progress_and_finished/APF_tmpgoal_3d2d.py
+proposal
+gifを入れる予定だったが，うまくいかないので跡だけ残す
 経路をグラフに表示
-2D,3Dポテンシャルも表示
+3Dポテンシャルも表示
 静的障害物に対して一時的なゴールを作成
+dynamic obs を作成
+
 """
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import patches as pat
 from matplotlib import cm
+import matplotlib.animation as ani
 
 class goal():                          
     def __init__(self, locate, area):
@@ -34,6 +35,17 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         self.locate_obstacles = obstacles
+    
+    def update_locate_obs(self):
+        """   
+        Content: update location dynamic obstacles ,assign dynamic obs id and displacement
+        obstacles: ID and position array([x1,y1][x2,y2]..)
+        """
+        dynamic_obs_id = [0]
+
+        for d in range(len(dynamic_obs_id)): 
+           self.locate_obstacles[d][0] += -0.1
+           self.locate_obstacles[d][1] += 0.01
         
 class vehicles():
     def __init__(self, init_locate): 
@@ -117,19 +129,24 @@ class calc_APF():
 class plot_path(): #plot vehicle trajectory
     """
     set param  ploting path
+    search about matplotlib with Internet
     """
     def __init__(self, start_position , goal_position):
-        fig = plt.figure(figsize=(7,7))
-        self.ploting_path = fig.add_subplot(111)
+        self.fig = plt.figure(figsize=(7,7))
+        self.ploting_path = self.fig.add_subplot(111)
         self.ploting_path.set_xlabel('X-distance: m')
         self.ploting_path.set_ylabel('Y-distance: m')
+        self.goal_position = goal_position
+        self.start_position = start_position
+        self._initialize_fig()
+
+    def _initialize_fig(self):
         self.graph_range = [0, 60]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
-        self.goal_position = goal_position
-        self.ploting_path.plot(start_position[0], start_position[1], "*r")
-        self.ploting_path.plot(goal_position[0], goal_position[1], "*b")
-        circle_goal = pat.Circle(xy=(goal_position[0], goal_position[1]), radius=2, fc ="y")
+        self.ploting_path.plot(self.start_position[0], self.start_position[1], "*r")
+        self.ploting_path.plot(self.goal_position[0], self.goal_position[1], "*b")
+        circle_goal = pat.Circle(xy=(self.goal_position[0], self.goal_position[1]), radius=2, fc ="y")
         self.ploting_path.add_patch(circle_goal)
         self.plot_obs(obs.locate_obstacles)
     
@@ -138,10 +155,11 @@ class plot_path(): #plot vehicle trajectory
         for i in range(len(obstacles)):
             circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius= r_area, fc ="b", alpha = 0.3)
             self.ploting_path.add_patch(circle_obs)
-            self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")
+            self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")       
     
     def plot_vehicle(self, locate_vehile): #plot locate_vehicle 
-        self.ploting_path.plot(locate_vehile[0], locate_vehile[1], ".r")
+        anime_array_source = self.ploting_path.plot(locate_vehile[0], locate_vehile[1], ".r")
+        return anime_array_source
 
     def calc_all_potential(self): #calculate potential whole area
         pot = []
@@ -276,8 +294,7 @@ class temporary_goal():
             return p2
         else: 
             return p1 
-        
-        
+            
     def set_temporary_goal(self): #set temporary goal
         if self.nearest_obs !=  None:
             temporary_goal_locate = [obs.locate_obstacles[self.nearest_obs[0]][0],obs.locate_obstacles[self.nearest_obs[0]][1]]
@@ -297,7 +314,6 @@ class temporary_goal():
         if self.nearest_obs != None:
             for x in range(50):
                 y = self.slope_nomal*x + self.intercept_nomal
-                #print("nomal x, y: ", x, y)
                 if y >= 0 or y <= 50:
                     path_fig.ploting_path.plot(x, y,".g")
                 else:
@@ -312,14 +328,11 @@ class temporary_goal():
         self.draw_nomalline()
         print("changed_temp_goal",self.temp_goal)
 
-
 def main(): 
-    animation_array = []
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
         APF.calc_obs_dist_theta(obs.locate_obstacles, veh1.locate_vehicles)
         temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
-        
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
             judgereach_finalgoal = True
@@ -330,16 +343,24 @@ def main():
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal    
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
-            path_fig.plot_vehicle(veh1.locate_vehicles)
-            animation_array.append(path_fig.ploting_path)
-            plt.pause(0.002)
+            obs.update_locate_obs()
+            path_fig._initialize_fig()
+            anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
+            #animation_array.append(anime_array_source)
+            plt.pause(0.02)    
+            plt.cla()
         if judgereach_finalgoal:
             APF.dist_v2goal = None
             print("reach tempo goal but not reach final goal")
+            #animation_array.append(anime_array_source)
+            plt.pause(0.02)  
+            plt.cla()
             return main()
         else:
             print("finish and show 3d")
-            path_fig.plot_3d_potential()
+            #anime_gif = ani.ArtistAnimation(path_fig.fig, animation_array, interval=100)
+            #anime_gif.save("proposal_gif2.gif", writer="pillow")
+            #path_fig.plot_3d_potential()
 
 
 if __name__ == '__main__':
@@ -349,4 +370,6 @@ if __name__ == '__main__':
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
     temp_goal = temporary_goal()
+    animation_array = []
     main()
+ 
