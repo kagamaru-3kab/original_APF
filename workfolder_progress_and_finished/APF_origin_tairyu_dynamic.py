@@ -1,5 +1,6 @@
 """
 Complete
+original potential
 経路を2Dグラフに表示
 3Dポテンシャルも表示
 滞留検知
