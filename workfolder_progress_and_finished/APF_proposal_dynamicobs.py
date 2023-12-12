@@ -42,10 +42,11 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         dynamic_obs_id = [0]
+        self.obs_velocity_vector = [-0.1, 0.08]#needed proposal dimension
 
         for d in range(len(dynamic_obs_id)): 
-           self.locate_obstacles[d][0] += -0.1
-           self.locate_obstacles[d][1] += 0.01
+           self.locate_obstacles[dynamic_obs_id[d]][0] += self.obs_velocity_vector[0]
+           self.locate_obstacles[dynamic_obs_id[d]][1] += self.obs_velocity_vector[1]
         
 class vehicles():
     def __init__(self, init_locate): 

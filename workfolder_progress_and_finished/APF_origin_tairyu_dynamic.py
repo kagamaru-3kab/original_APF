@@ -36,10 +36,11 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         dynamic_obs_id = [0]
+        self.obs_velocity_vector = [-0.1, 0.08]#needed proposal dimension
 
         for d in range(len(dynamic_obs_id)): 
-           self.locate_obstacles[d][0] += -0.1
-           self.locate_obstacles[d][1] += 0.01
+           self.locate_obstacles[dynamic_obs_id[d]][0] += self.obs_velocity_vector[0]
+           self.locate_obstacles[dynamic_obs_id[d]][1] += self.obs_velocity_vector[1]
         
 
 class vehicles():
@@ -163,17 +164,21 @@ class plot_path(): #plot vehicle trajectory
     set param  ploting path
     """
     def __init__(self, start_position , goal_position):
-        fig = plt.figure(figsize=(7,7))
-        self.ploting_path = fig.add_subplot(111)
+        self.fig = plt.figure(figsize=(7,7))
+        self.ploting_path = self.fig.add_subplot(111)
         self.ploting_path.set_xlabel('X-distance: m')
         self.ploting_path.set_ylabel('Y-distance: m')
+        self.goal_position = goal_position
+        self.start_position = start_position
+        self._initialize_fig()
+
+    def _initialize_fig(self):
         self.graph_range = [0, 60]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
-        self.goal_position = goal_position
-        self.ploting_path.plot(start_position[0], start_position[1], "*r")
-        self.ploting_path.plot(goal_position[0], goal_position[1], "*b")
-        circle_goal = pat.Circle(xy=(goal_position[0], goal_position[1]), radius=2, fc ="y")
+        self.ploting_path.plot(self.start_position[0], self.start_position[1], "*r")
+        self.ploting_path.plot(self.goal_position[0], self.goal_position[1], "*b")
+        circle_goal = pat.Circle(xy=(self.goal_position[0], self.goal_position[1]), radius=2, fc ="y")
         self.ploting_path.add_patch(circle_goal)
         self.plot_obs(obs.locate_obstacles)
     
@@ -218,8 +223,11 @@ def main():
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:
             partialdiffer_x, partialdiffer_y = APF.route_creater(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
+            obs.update_locate_obs()
+            path_fig._initialize_fig()
             path_fig.plot_vehicle(veh1.locate_vehicles)
-            plt.pause(0.0002)
+            plt.pause(0.02)
+            plt.cla()
         print("finish and show 3d")
         path_fig.plot_3d_potential()
 

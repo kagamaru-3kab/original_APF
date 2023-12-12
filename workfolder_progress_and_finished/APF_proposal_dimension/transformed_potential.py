@@ -37,12 +37,12 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         self.obs_velocity_vector = [Vx, Vy]
         """
-        dynamic_obs_id = [0]
-        self.obs_velocity_vector = [-0.1, 0.08]#needed proposal dimension
+        self.dynamic_obs_id = [0]
+        self.obs_velocity_vector = [[-0.1, 0.08]]#needed proposal dimension
 
-        for d in range(len(dynamic_obs_id)): 
-           self.locate_obstacles[dynamic_obs_id[d]][0] += self.obs_velocity_vector[0]
-           self.locate_obstacles[dynamic_obs_id[d]][1] += self.obs_velocity_vector[1]
+        for d in range(len(self.dynamic_obs_id)): 
+           self.locate_obstacles[self.dynamic_obs_id[d]][0] += self.obs_velocity_vector[self.dynamic_obs_id[d]][0]
+           self.locate_obstacles[self.dynamic_obs_id[d]][1] += self.obs_velocity_vector[self.dynamic_obs_id[d]][1]
         
 class vehicles():
     def __init__(self, init_locate): 
@@ -326,23 +326,46 @@ class temporary_goal():
         print("changed_temp_goal",self.temp_goal)
 
 class proposal_the_other_dimension():
+    """
+    direction_terms: decide angle range where dynamic obstacles come from
+    kx, ky :coefficient with denominator of elipse
+    """
     def __init__(self):
         self.direction_terms_forward = [np.sin(np.radians(60)),np.sin(np.radians(120))]
         self.direction_terms_side = [np.sin(np.radians(120)),np.sin(np.radians(210))]
         self.direction_terms_back = [np.sin(np.radians(210)),np.sin(np.radians(330))]
+        self.kx ,self.ky = 1 ,1 
+        
     
-    def calc_dynamic_repulsive(self, locate_obs): #calculate dynamic repulse_force  ellipse shape
-        if len(locate_obs) == None:
-            self.repforce = [0]
+    def calc_dynamic_repulsive(self, locate_obs,locate_vehicles): #calculate dynamic repulse_force  ellipse shape
+        if len(obs.dynamic_obs_id) == None:
+            self.dynamic_repforce = [0]
         else:
-            self.repforce = [0]*len(locate_obs)
-            self.calc_obs_dist_theta(locate_obs, locate_vehicles)
-            for id in range(len(self.dist_v2obs)):
-                if self.dist_v2obs[id] <= 0:
+            self.dynamic_repforce= [0,0,0,0,0,0]*len(obs.dynamic_obs_id) #self.dynamic_repforce will contain [denom_x,denom_y,numer_x,numer_y,dynamic_repulse_area,dynamic_repulsive_potential]
+            for id in len(obs.dynamic_obs_id):
+                denom_x = self.kx*(obs.obs_velocity_vector[id][0])**2
+                denom_y = self.ky*(obs.obs_velocity_vector[id][1])**2
+                numer_x = ((locate_vehicles[0]-obs.locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])**2)
+                numer_y = ((locate_vehicles[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])**2)
+                #dynamic_repulsive_area = denom_x if denom_x >= denom_y else denom_y
+                dynamic_repulsive_area = np.sqrt(denom_x+denom_y)
+                dynamic_repulsive_poten = 1/np.sqrt((numer_x/denom_x)+(numer_y/denom_y))
+                self.dynamic_repforce[id] = [denom_x,denom_y,numer_x,numer_y,dynamic_repulsive_area,dynamic_repulsive_poten]
+
+
+
+   #daenn ennshuu jou no tenn kara nokyori              
+            for id in range(len(obs.dynamic_obs_id)):
+                if APF.dist_v2obs[id] <= 0:
                     self.repforce[id] = 1
                 elif self.repulsed_area >= self.dist_v2obs[id]:
                     #self.repforce[id] = 1*self.repulse_k/self.dist_v2obs[id]
-                    
+                    for id in len(obs.obs_velocity_vector):
+                        denom_x = self.kx*(obs.obs_velocity_vector[id][0])**2
+                        denom_y = self.ky*(obs.obs_velocity_vector[id][1])**2
+                        numer_x = ((locate_vehicles[0]-obs.locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])**2)
+                        numer_y = ((locate_vehicles[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])**2)
+                        self.dynamic_repulsive_area = denom_x if denom_x >= denom_y else denom_y     
 
                 else: self.repforce[id] = 0 
 def main(): 
