@@ -30,6 +30,8 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         self.locate_obstacles = obstacles
+        self.dynamic_obs_id = [0]
+        self.obs_velocity_vector = [[-0.1, 0.08]]#needed proposal dimension
     
     def update_locate_obs(self):
         """   
@@ -37,9 +39,6 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         self.obs_velocity_vector = [Vx, Vy]
         """
-        self.dynamic_obs_id = [0]
-        self.obs_velocity_vector = [[-0.1, 0.08]]#needed proposal dimension
-
         for d in range(len(self.dynamic_obs_id)): 
            self.locate_obstacles[self.dynamic_obs_id[d]][0] += self.obs_velocity_vector[self.dynamic_obs_id[d]][0]
            self.locate_obstacles[self.dynamic_obs_id[d]][1] += self.obs_velocity_vector[self.dynamic_obs_id[d]][1]
@@ -54,7 +53,17 @@ class vehicles():
         self.diameter = 0.5
         self.speed    = 0.1
         self.locate_vehicles = init_locate
-    
+        self.beforestep_vehicle = init_locate
+
+    def find_vehicle_vector(self,locate_vehicle): #volocity_vector is needed for dynamic obs aboidance
+        if self.beforestep_vehicle != locate_vehicle:
+            vx = locate_vehicle[0]-self.beforestep_vehicle[0]
+            vy = locate_vehicle[1]-self.beforestep_vehicle[1]
+            self.beforestep_vehicle = locate_vehicle
+            self.vehicle_vector = [vx,vy]
+        else:
+            self.vehicle_vector = [0,0]
+
     def get_locate(self, locate):     #update vehicle position
         self.locate_vehicles = locate
         return self.locate_vehicles
@@ -98,11 +107,13 @@ class calc_APF():
             self.repforce = [0]*len(locate_obs)
             self.calc_obs_dist_theta(locate_obs, locate_vehicles)
             for id in range(len(self.dist_v2obs)):
-                if self.dist_v2obs[id] <= 0:
-                    self.repforce[id] = 1
-                elif self.repulsed_area >= self.dist_v2obs[id]:
-                    self.repforce[id] = 1*self.repulse_k/self.dist_v2obs[id]
-                else: self.repforce[id] = 0 
+                flag = id not in obs.dynamic_obs_id
+                if flag:
+                    if self.dist_v2obs[id] <= 0:
+                        self.repforce[id] = 1
+                    elif self.repulsed_area >= self.dist_v2obs[id]:
+                        self.repforce[id] = 1*self.repulse_k/self.dist_v2obs[id]
+                    else: self.repforce[id] = 0 
 
     def calc_sum_potentialforce(self, locate_goal, locate_vehicles, locate_obs): #calculate sum attractive_force
         self.calc_attractive_force(locate_goal, locate_vehicles)    
@@ -114,6 +125,11 @@ class calc_APF():
    
     def route_creater(self, locate_goal, locate_vehicles, locate_obs): #route_creater calculates movement amount from partitial differential of potential 
         current_potential = self.calc_sum_potentialforce(locate_goal, locate_vehicles, locate_obs)
+        veh1.find_vehicle_vector(locate_vehicles)
+        dimention.creat_leading_point(locate_vehicles)
+        print("current_poten",current_potential)
+        current_potential += dimention.calc_dynamic_repulsive()
+        print("current_poten_after",current_potential)
         delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0]+self.vehicles_speed, locate_vehicles[1]], locate_obs)
         delt_poten_y = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0] ,locate_vehicles[1]+self.vehicles_speed], locate_obs)
         partialdiffer_x = delt_poten_x - current_potential
@@ -240,9 +256,9 @@ class temporary_goal():
                 elif Numerator == 0:
                     dist_from_line[i] = 0
                 else:
-                    print("Numerator is -1 because target_goal is out of range")
+                    print("Numerator is < 0 because target_goal is out of range")
                     dist_from_line[i] = APF.repulsed_area + 1
-                print("id + dist_from_line", i, dist_from_line[i])
+                #print("id + dist_from_line", i, dist_from_line[i])
                 if dist_from_line[i] < APF.repulsed_area:
                     self.register_id_obs.append(i)
                     print("found obs on line")
@@ -254,7 +270,7 @@ class temporary_goal():
             print(" obstacles no exist")
         
         if self.register_id_obs == None:
-            print("registerID is None")
+            print("ゴールまでの線上のobsは None")
         else:
             print("ゴールまでの線上のobsは",len(self.register_id_obs),"個だ")
     
@@ -335,39 +351,36 @@ class proposal_the_other_dimension():
         self.direction_terms_side = [np.sin(np.radians(120)),np.sin(np.radians(210))]
         self.direction_terms_back = [np.sin(np.radians(210)),np.sin(np.radians(330))]
         self.kx ,self.ky = 1 ,1 
-        
+        self.leading_interval_coefficient = 2
     
-    def calc_dynamic_repulsive(self, locate_obs,locate_vehicles): #calculate dynamic repulse_force  ellipse shape
+    def creat_leading_point(self,locate_vehicles):
+        dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
+        dy = self.leading_interval_coefficient*veh1.vehicle_vector[1]
+        self.locate_leading_point = [locate_vehicles[0]+dx,locate_vehicles[1]+dy ]
+        path_fig.ploting_path.plot(self.locate_leading_point[0],self.locate_leading_point[1], ".b")
+
+    def calc_dynamic_repulsive(self): #calculate dynamic repulse_force  ellipse shape
+        self.total_repulsive_force = 0
         if len(obs.dynamic_obs_id) == None:
             self.dynamic_repforce = [0]
         else:
             self.dynamic_repforce= [0,0,0,0,0,0]*len(obs.dynamic_obs_id) #self.dynamic_repforce will contain [denom_x,denom_y,numer_x,numer_y,dynamic_repulse_area,dynamic_repulsive_potential]
-            for id in len(obs.dynamic_obs_id):
+            for id in range(len(obs.dynamic_obs_id)):
                 denom_x = self.kx*(obs.obs_velocity_vector[id][0])**2
                 denom_y = self.ky*(obs.obs_velocity_vector[id][1])**2
-                numer_x = ((locate_vehicles[0]-obs.locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])**2)
-                numer_y = ((locate_vehicles[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])**2)
-                #dynamic_repulsive_area = denom_x if denom_x >= denom_y else denom_y
-                dynamic_repulsive_area = np.sqrt(denom_x+denom_y)
-                dynamic_repulsive_poten = 1/np.sqrt((numer_x/denom_x)+(numer_y/denom_y))
+                numer_x = ((self.locate_leading_point[0]-obs.locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])**2)
+                numer_y = ((self.locate_leading_point[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])**2)
+                dynamic_repulsive_area = (numer_x/denom_x)+(numer_y/denom_y) -1 # dynamic_repulsive_area <= 0 indicates in or out ellipse 
+                if dynamic_repulsive_area <= 0:
+                    dynamic_repulsive_poten = 1/np.sqrt((dynamic_repulsive_area +1))
+                    print("vehicle in dynamic obs ellipse")
+                else:
+                    dynamic_repulsive_poten = 0
+
                 self.dynamic_repforce[id] = [denom_x,denom_y,numer_x,numer_y,dynamic_repulsive_area,dynamic_repulsive_poten]
+                self.total_repulsive_force += self.dynamic_repforce[id][5]
+        return self.total_repulsive_force
 
-
-
-   #daenn ennshuu jou no tenn kara nokyori              
-            for id in range(len(obs.dynamic_obs_id)):
-                if APF.dist_v2obs[id] <= 0:
-                    self.repforce[id] = 1
-                elif self.repulsed_area >= self.dist_v2obs[id]:
-                    #self.repforce[id] = 1*self.repulse_k/self.dist_v2obs[id]
-                    for id in len(obs.obs_velocity_vector):
-                        denom_x = self.kx*(obs.obs_velocity_vector[id][0])**2
-                        denom_y = self.ky*(obs.obs_velocity_vector[id][1])**2
-                        numer_x = ((locate_vehicles[0]-obs.locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])**2)
-                        numer_y = ((locate_vehicles[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])**2)
-                        self.dynamic_repulsive_area = denom_x if denom_x >= denom_y else denom_y     
-
-                else: self.repforce[id] = 0 
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
@@ -385,6 +398,8 @@ def main():
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             obs.update_locate_obs()
             path_fig._initialize_fig()
+            print("veh, obs, veh.vector, leading point\n",veh1.locate_vehicles, obs.locate_obstacles, veh1.vehicle_vector,dimention.locate_leading_point)
+            print("total_dynamic_repulse",dimention.total_repulsive_force)
             plt.pause(0.02)    
             plt.cla()
         if judgereach_finalgoal:
@@ -397,16 +412,17 @@ def main():
             print("finish and show 3d")
             #anime_gif = ani.ArtistAnimation(path_fig.fig, animation_array, interval=100)
             #anime_gif.save("proposal_gif2.gif", writer="pillow")
-            #path_fig.plot_3d_potential()
+            path_fig.plot_3d_potential()
 
 
 if __name__ == '__main__':
     fgoal = goal([50,50],10)
-    obs = obstacles([[20,20],[30, 30]])
+    obs = obstacles([[40,17]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
     temp_goal = temporary_goal()
+    dimention = proposal_the_other_dimension()
     animation_array = []
     main()
  
