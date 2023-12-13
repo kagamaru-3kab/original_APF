@@ -351,7 +351,7 @@ class proposal_the_other_dimension():
         self.direction_terms_side = [np.sin(np.radians(120)),np.sin(np.radians(210))]
         self.direction_terms_back = [np.sin(np.radians(210)),np.sin(np.radians(330))]
         self.kx ,self.ky = 1 ,1 
-        self.leading_interval_coefficient = 2
+        self.leading_interval_coefficient = 4
     
     def creat_leading_point(self,locate_vehicles):
         dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
@@ -400,6 +400,7 @@ def main():
             path_fig._initialize_fig()
             print("veh, obs, veh.vector, leading point\n",veh1.locate_vehicles, obs.locate_obstacles, veh1.vehicle_vector,dimention.locate_leading_point)
             print("total_dynamic_repulse",dimention.total_repulsive_force)
+            anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
             plt.pause(0.02)    
             plt.cla()
         if judgereach_finalgoal:
