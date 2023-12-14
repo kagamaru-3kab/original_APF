@@ -31,7 +31,7 @@ class obstacles():
         """
         self.locate_obstacles = obstacles
         self.dynamic_obs_id = [0]
-        self.obs_velocity_vector = [[-0.1, 0.08]]#needed proposal dimension
+        self.obs_velocity_vector = [[-1, -1]]#needed proposal dimension
     
     def update_locate_obs(self):
         """   
@@ -127,9 +127,9 @@ class calc_APF():
         current_potential = self.calc_sum_potentialforce(locate_goal, locate_vehicles, locate_obs)
         veh1.find_vehicle_vector(locate_vehicles)
         dimention.creat_leading_point(locate_vehicles)
-        print("current_poten",current_potential)
+        #print("current_poten      ",current_potential)
         current_potential += dimention.calc_dynamic_repulsive()
-        print("current_poten_after",current_potential)
+        #print("current_poten_after",current_potential)
         delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0]+self.vehicles_speed, locate_vehicles[1]], locate_obs)
         delt_poten_y = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0] ,locate_vehicles[1]+self.vehicles_speed], locate_obs)
         partialdiffer_x = delt_poten_x - current_potential
@@ -154,7 +154,7 @@ class plot_path(): #plot vehicle trajectory
         self._initialize_fig()
 
     def _initialize_fig(self):
-        self.graph_range = [0, 60]
+        self.graph_range = [0, 150]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
         self.ploting_path.plot(self.start_position[0], self.start_position[1], "*r")
@@ -166,10 +166,15 @@ class plot_path(): #plot vehicle trajectory
     def plot_obs(self, obstacles): #plot set obstacles area
         r_area = APF.repulsed_area
         for i in range(len(obstacles)):
-            circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius= r_area, fc ="b", alpha = 0.3)
-            self.ploting_path.add_patch(circle_obs)
-            self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")       
-    
+            if i not in obs.dynamic_obs_id:
+                circle_obs = pat.Circle(xy=(obstacles[i][0],obstacles[i][1]), radius= r_area, fc ="b", alpha = 0.3)
+                self.ploting_path.add_patch(circle_obs)
+                self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")       
+            else:
+                ellipse_obs = pat.Ellipse(xy=(obs.locate_obstacles[i][0], obs.locate_obstacles[i][1]), width=obs.locate_obstacles[obs.dynamic_obs_id[id]][0]+obs.obs_velocity_vector[id][0], height=self.locate_leading_point[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]+obs.obs_velocity_vector[id][1], color="orange", alpha=0.8, angle=np.degrees(np.arctan2(obs.obs_velocity_vector[i][1],obs.obs_velocity_vector[i][0])))
+                self.ploting_path.add_patch(ellipse_obs)
+                self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")   
+
     def plot_vehicle(self, locate_vehile): #plot locate_vehicle 
         anime_array_source = self.ploting_path.plot(locate_vehile[0], locate_vehile[1], ".r")
         return anime_array_source
@@ -350,8 +355,9 @@ class proposal_the_other_dimension():
         self.direction_terms_forward = [np.sin(np.radians(60)),np.sin(np.radians(120))]
         self.direction_terms_side = [np.sin(np.radians(120)),np.sin(np.radians(210))]
         self.direction_terms_back = [np.sin(np.radians(210)),np.sin(np.radians(330))]
-        self.kx ,self.ky = 1 ,1 
-        self.leading_interval_coefficient = 4
+        self.kx ,self.ky = 10 ,10 
+        self.minimum_repluse_area = 10
+        self.leading_interval_coefficient = 8
     
     def creat_leading_point(self,locate_vehicles):
         dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
@@ -366,11 +372,20 @@ class proposal_the_other_dimension():
         else:
             self.dynamic_repforce= [0,0,0,0,0,0]*len(obs.dynamic_obs_id) #self.dynamic_repforce will contain [denom_x,denom_y,numer_x,numer_y,dynamic_repulse_area,dynamic_repulsive_potential]
             for id in range(len(obs.dynamic_obs_id)):
-                denom_x = self.kx*(obs.obs_velocity_vector[id][0])**2
-                denom_y = self.ky*(obs.obs_velocity_vector[id][1])**2
+                denom_x = (self.kx*(obs.obs_velocity_vector[id][0])**2)
+                denom_y = (self.ky*(obs.obs_velocity_vector[id][1])**2)
+                print("denom x, denom_y",denom_x,denom_y)
+                denom_x +=self.minimum_repluse_area
+                denom_y +=self.minimum_repluse_area
                 numer_x = ((self.locate_leading_point[0]-obs.locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])**2)
                 numer_y = ((self.locate_leading_point[1]-obs.locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])**2)
-                dynamic_repulsive_area = (numer_x/denom_x)+(numer_y/denom_y) -1 # dynamic_repulsive_area <= 0 indicates in or out ellipse 
+                if denom_x + denom_y == 0:
+                    dynamic_repulsive_area = 1 # error deal
+                else:   
+                        A = 0 if denom_x == 0 else (numer_x/denom_x)
+                        B = 0 if denom_y == 0 else (numer_y/denom_y)
+                        dynamic_repulsive_area = (A)+(B) -1 # dynamic_repulsive_area <= 0 indicates in or out ellipse 
+                        print("dynamic rep area",dynamic_repulsive_area)
                 if dynamic_repulsive_area <= 0:
                     dynamic_repulsive_poten = 1/np.sqrt((dynamic_repulsive_area +1))
                     print("vehicle in dynamic obs ellipse")
@@ -385,7 +400,8 @@ def main():
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
         APF.calc_goal_dist_theta(fgoal.locate_goal, veh1.locate_vehicles)
         APF.calc_obs_dist_theta(obs.locate_obstacles, veh1.locate_vehicles)
-        temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
+        #temp_goal.integrate_temporarygoal(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
+        temp_goal.temp_goal = None #itijitekini 
         if temp_goal.temp_goal != None:
             target_goal = temp_goal.temp_goal
             judgereach_finalgoal = True
@@ -395,11 +411,12 @@ def main():
     if APF.dist_v2goal != None:
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal    
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
+            partialdiffer_x, partialdiffer_y = 10*partialdiffer_x, 10*partialdiffer_y #due to graph expaned, speed up
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             obs.update_locate_obs()
             path_fig._initialize_fig()
             print("veh, obs, veh.vector, leading point\n",veh1.locate_vehicles, obs.locate_obstacles, veh1.vehicle_vector,dimention.locate_leading_point)
-            print("total_dynamic_repulse",dimention.total_repulsive_force)
+            #print("total_dynamic_repulse",dimention.total_repulsive_force)
             anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
             plt.pause(0.02)    
             plt.cla()
@@ -417,8 +434,8 @@ def main():
 
 
 if __name__ == '__main__':
-    fgoal = goal([50,50],10)
-    obs = obstacles([[40,17]])
+    fgoal = goal([120,120],10)
+    obs = obstacles([[120,120]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
