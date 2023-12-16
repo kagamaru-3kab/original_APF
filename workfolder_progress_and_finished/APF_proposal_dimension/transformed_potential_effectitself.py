@@ -1,7 +1,7 @@
 """
 proposal dimension
 potential map をグラフに表示
-
+モビリティは静的ポテンシャルとleading pointにかかる動的ポテンシャルに動かされる
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -32,7 +32,7 @@ class obstacles():
         """
         self.locate_obstacles = obstacles
         self.dynamic_obs_id = [0]
-        self.obs_velocity_vector = [[-4, -4]]#needed proposal dimension
+        self.obs_velocity_vector = [[-4, -2]]#needed proposal dimension
     
     def update_locate_obs(self):
         """   
@@ -55,7 +55,7 @@ class vehicles():
         self.speed    = 0.1
         self.locate_vehicles = init_locate
         self.beforestep_vehicle = init_locate
-        self.vehicle_vector = [self.speed, self.speed]
+        self.vehicle_vector = [0,0]
 
     def find_vehicle_vector(self,locate_vehicle): #update, volocity_vector is needed for dynamic obs aboidance
         if self.beforestep_vehicle != locate_vehicle:
@@ -121,48 +121,25 @@ class calc_APF():
         self.calc_attractive_force(locate_goal, locate_vehicles)    
         self.calc_repulsive_force(locate_obs, locate_vehicles)
         self.total_pot = self.attforce
-        #print("\nattractive",self.attforce)
+        print("\nattractive",self.attforce)
         for id in range(len(self.repforce)):
             self.total_pot = self.total_pot + self.repforce[id]
-            #print("repulsive",self.repforce)
-        #print("total_poten",self.total_pot)
+            print("repulsive",self.repforce)
+        print("total_poten",self.total_pot)
         return self.total_pot
    
     def route_creater(self, locate_goal, locate_vehicles, locate_obs): #route_creater calculates movement amount from partitial differential of potential 
-        delt_dynamic_x = 0 #if dynamic repluse force is off, making sense
-        delt_dynamic_y = 0 #if dynamic repluse force is off, making sense
         veh1.find_vehicle_vector(locate_vehicles)
         current_potential = self.calc_sum_potentialforce(locate_goal, locate_vehicles, locate_obs)
-        #dynamic_repulse_force = dimention.calc_dynamic_repulsive(dimention.locate_leading_point,locate_obs)
-        #current_potential += dynamic_repulse_force
-        delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0]+self.vehicles_speed, locate_vehicles[1]], locate_obs)
-        delt_poten_y = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0] ,locate_vehicles[1]+self.vehicles_speed], locate_obs)
-        #delt_dynamic_x = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0]+dimention.dx ,dimention.locate_leading_point[1]],locate_obs)
-        #delt_dynamic_y = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0], dimention.locate_leading_point[1]+dimention.dy],locate_obs)
-        partialdiffer_x = (delt_poten_x + delt_dynamic_x)- current_potential #partialdiffer > 0 push back, <0 go ahead in short delt <current push back
-        #print("partX =delt X- currentPoten",partialdiffer_x, delt_poten_x, current_potential)
-        partialdiffer_y = (delt_poten_y+ delt_dynamic_y) - current_potential
-        synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
-        partialdiffer_x /=synthesis_v/self.vehicles_speed*-1   #正規化らしい +-change 
-        partialdiffer_y /=synthesis_v/self.vehicles_speed*-1
-        #print("222partX delt X currentPoten",partialdiffer_x, delt_poten_x, current_potential)
-        return partialdiffer_x, partialdiffer_y
-    
-    def route_creater_for_proposal_dynamic(self, locate_goal, locate_leading, locate_obs): #route_creater calculates movement amount from partitial differential of potential 
-        delt_dynamic_x = 0 #if dynamic repluse force is off, making sense
-        delt_dynamic_y = 0 #if dynamic repluse force is off, making sense
-        delt_poten_x = 0
-        delt_poten_y = 0
-        veh1.find_vehicle_vector(veh1.locate_vehicles)
-        current_potential = self.calc_sum_potentialforce(locate_goal, locate_leading, locate_obs)
         dynamic_repulse_force = dimention.calc_dynamic_repulsive(dimention.locate_leading_point,locate_obs)
         current_potential += dynamic_repulse_force
-        delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_leading[0]+self.vehicles_speed, locate_leading[1]], locate_obs) #止まってる障害物からの反力しか影響ないので，動く障害物だけのときは，attractive forceのみ返る
-        delt_poten_y = self.calc_sum_potentialforce(locate_goal, [locate_leading[0] ,locate_leading[1]+self.vehicles_speed], locate_obs)
-        delt_dynamic_x = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0]+self.vehicles_speed ,dimention.locate_leading_point[1]],locate_obs)
-        delt_dynamic_y = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0], dimention.locate_leading_point[1]+self.vehicles_speed],locate_obs)
+        #print("dynamicrepulseforce",dynamic_repulse_force)
+        delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0]+self.vehicles_speed, locate_vehicles[1]], locate_obs)
+        delt_poten_y = self.calc_sum_potentialforce(locate_goal, [locate_vehicles[0] ,locate_vehicles[1]+self.vehicles_speed], locate_obs)
+        delt_dynamic_x = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0]+dimention.dx ,dimention.locate_leading_point[1]],locate_obs)
+        delt_dynamic_y = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0], dimention.locate_leading_point[1]+dimention.dy],locate_obs)
         partialdiffer_x = (delt_poten_x + delt_dynamic_x)- current_potential #partialdiffer > 0 push back, <0 go ahead in short delt <current push back
-        print("partX =delt X- currentPoten",partialdiffer_x, delt_poten_x, current_potential)
+        #print("partX =delt X- currentPoten",partialdiffer_x, delt_poten_x, current_potential)
         partialdiffer_y = (delt_poten_y+ delt_dynamic_y) - current_potential
         synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
         partialdiffer_x /=synthesis_v/self.vehicles_speed*-1   #正規化らしい +-change 
@@ -399,59 +376,27 @@ class proposal_the_other_dimension():
         self.denom_x_root = 0
         self.denom_y =0
         self.denom_y_root = 0
-        self.locate_leading_point = [veh1.locate_vehicles[0],veh1.locate_vehicles[1]]
-        self.dx = veh1.speed
-        self.dy= veh1.speed
+        self.locate_leading_point = [0,0]
+        self.dx = 0
+        self.dy= 0
         self.obs_direction = 0
-        self.temp_goal_point = fgoal.locate_goal 
-        self.leading_interval = 5
-    """
-    def update_leading_point(self,locate_vehicles): #leading point moves by vehicle position and velocity
+        self.temp_goal_point = fgoal.locate_goal
+
+    def update_leading_point(self,locate_vehicles):
         self.dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
         self.dy = self.leading_interval_coefficient*veh1.vehicle_vector[1]
         self.locate_leading_point = [locate_vehicles[0]+self.dx,locate_vehicles[1]+self.dy ]
         #path_fig.ploting_path.plot(self.locate_leading_point[0],self.locate_leading_point[1], ".b")
-    """
-    def update_leading_point(self,locate_goal):  #leading point moves by its potential
-        self.before_locate_leading_point = self.locate_leading_point
-        count_calc_guidepoint = 0
-        flag = True
-        while flag:
-            self.dx, self.dy = APF.route_creater_for_proposal_dynamic(locate_goal, self.locate_leading_point, obs.locate_obstacles)
-            print("dx  dy",self.dx,self.dy)
-            self.locate_leading_point = [self.locate_leading_point[0]+self.dx, self.locate_leading_point[1]+self.dy ]
-            self.dist_leading2vehicle = np.sqrt((self.locate_leading_point[0]-veh1.locate_vehicles[0])**2+(self.locate_leading_point[1]-veh1.locate_vehicles[1])**2)
-            self.dist_leading2goal = np.sqrt((locate_goal[0]-self.locate_leading_point[0])**2+(locate_goal[1]-self.locate_leading_point[1])**2)
-            self.dist_v2goal = np.sqrt((locate_goal[0]-veh1.locate_vehicles[0])**2+(locate_goal[1]-veh1.locate_vehicles[1])**2)
-            #print("countcalc_guideponint",count_calc_guidepoint)
-            count_calc_guidepoint += 1
-            print("count update",count_calc_guidepoint)
-            if count_calc_guidepoint >200:
-                print("leadind point is stuck")
-                self.locate_leading_point[1] += 0.1
-                count_calc_guidepoint = 0
-            
-            print("leading interval",self.leading_interval)
-            if self.dist_leading2vehicle >= self.leading_interval:
-                    flag = False
-                    count_calc_guidepoint = 0
-
-    def judge_whereObscomefrom(self,locate_vehicles): #leading point moves by vehicle position and velocity
-        #velocity_dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
-        #velocity_dy = self.leading_interval_coefficient*veh1.vehicle_vector[1]
-        #self.set_leading_point_onVehiclevelocity = [locate_vehicles[0]+velocity_dx,locate_vehicles[1]+velocity_dy ]
-        #self.LP_velocity_vector =[self.set_leading_point_onVehiclevelocity[0]-locate_vehicles[0],self.set_leading_point_onVehiclevelocity[1]-locate_vehicles[1]]
-        #self.LP_potential_vector =[self.locate_leading_point[0]-locate_vehicles[0],self.locate_leading_point[1]-locate_vehicles[1]]
-        pass
+    
     def calc_leading_point_potential(self):
-       total_repulse = self.calc_dynamic_repulsive(self.locate_leading_point[0], self.locate_leading_point[0]) 
+       total_repulse = self.calc_dynamic_repulsive(self.locate_leading_point, obs.locate_obstacles) 
        if total_repulse == None or total_repulse == 0:
            pass
        else:
            pass
         
         
-    def calc_dynamic_repulsive(self, locate_leading_point, locate_obstacles ): #calculate dynamic repulse_force  ellipse shape
+    def calc_dynamic_repulsive(self,locate_leading_point,locate_obstacles ): #calculate dynamic repulse_force  ellipse shape
         self.total_repulsive_force = 0
         if len(obs.dynamic_obs_id) == None:
             self.total_repulsive_force = 0
@@ -467,7 +412,7 @@ class proposal_the_other_dimension():
                 self.denom_y_root = np.sqrt(self.denom_y) #used by plot ellipse obs 
                 numer_x_origin = (locate_leading_point[0]-locate_obstacles[obs.dynamic_obs_id[id]][0]-obs.obs_velocity_vector[id][0])
                 numer_y_origin = (locate_leading_point[1]-locate_obstacles[obs.dynamic_obs_id[id]][1]-obs.obs_velocity_vector[id][1])
-                self.obs_direction = np.arctan2(obs.obs_velocity_vector[id][1], obs.obs_velocity_vector[id][0])
+                self.obs_direction = np.arctan2(obs.obs_velocity_vector[id][1],obs.obs_velocity_vector[id][0])
                 rot = np.array([[cos(self.obs_direction), -sin(self.obs_direction)], [sin(self.obs_direction), cos(self.obs_direction)]])
                 v = np.array([numer_x_origin, numer_y_origin])
                 rotated_xy = np.dot(rot, v)
@@ -482,12 +427,12 @@ class proposal_the_other_dimension():
                         print("dynamic rep area",dynamic_repulsive_area)
                 if dynamic_repulsive_area <= 0:
                     dynamic_repulsive_poten = 1/np.sqrt((dynamic_repulsive_area +1))
-                    #print("vehicle in dynamic obs ellipse",dynamic_repulsive_poten)
+                    print("vehicle in dynamic obs ellipse",dynamic_repulsive_poten)
                 else:
                     dynamic_repulsive_poten = 0
                 self.dynamic_repforce[id] = [self.denom_x,self.denom_y,numer_x,numer_y,dynamic_repulsive_area,dynamic_repulsive_poten]
                 self.total_repulsive_force += self.dynamic_repforce[id][5]
-        #print("self.total_dynamic_repluse",self.total_repulsive_force)
+        print("self.total_dynamic_repluse",self.total_repulsive_force)
         return self.total_repulsive_force
 
 def main(): 
@@ -504,9 +449,9 @@ def main():
             judgereach_finalgoal = False
     if APF.dist_v2goal != None:
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal  
-            dimention.update_leading_point(target_goal)  
+            dimention.update_leading_point(veh1.locate_vehicles)  
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
-            duetoexpandmap = 15
+            duetoexpandmap = 8
             partialdiffer_x, partialdiffer_y = duetoexpandmap*partialdiffer_x, duetoexpandmap*partialdiffer_y #due to graph expaned, speed up
             #print("333partX delt X currentPoten",partialdiffer_x)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
@@ -516,7 +461,7 @@ def main():
             print("\nveh, obs, veh.vector, leading point\n",veh1.locate_vehicles, obs.locate_obstacles, veh1.vehicle_vector,dimention.locate_leading_point)
             #print("partiald x y" , partialdiffer_x, partialdiffer_y)
             anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
-            plt.pause(1.2)    
+            plt.pause(0.2)    
             plt.cla()
         if judgereach_finalgoal:
             APF.dist_v2goal = None
