@@ -2,6 +2,7 @@
 proposal dimension
 potential map をグラフに表示
 モビリティは静的ポテンシャルとleading pointにかかる動的ポテンシャルに動かされる
+車両は自身に静的，リードポイントの動的ポテンシャルで動く
 """
 import numpy as np
 from matplotlib import pyplot as plt

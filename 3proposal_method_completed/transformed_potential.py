@@ -52,8 +52,7 @@ class vehicles():
         speed: vehicles
         """
         self.diameter = 0.5
-        self.veh_maxspeed = 0.15
-        self.speed    = self.veh_maxspeed
+        self.speed    = 0.1
         self.locate_vehicles = init_locate
         self.beforestep_vehicle = init_locate
         self.vehicle_vector = [self.speed, self.speed]
@@ -163,7 +162,7 @@ class calc_APF():
         delt_dynamic_x = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0]+self.vehicles_speed ,dimention.locate_leading_point[1]],locate_obs)
         delt_dynamic_y = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0], dimention.locate_leading_point[1]+self.vehicles_speed],locate_obs)
         partialdiffer_x = (delt_poten_x + delt_dynamic_x)- current_potential #partialdiffer > 0 push back, <0 go ahead in short delt <current push back
-        #print("partX =delt X- currentPoten",partialdiffer_x, delt_poten_x, current_potential)
+        print("partX =delt X- currentPoten",partialdiffer_x, delt_poten_x, current_potential)
         partialdiffer_y = (delt_poten_y+ delt_dynamic_y) - current_potential
         synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
         partialdiffer_x /=synthesis_v/self.vehicles_speed*-1   #正規化らしい +-change 
@@ -212,15 +211,11 @@ class plot_path(): #plot vehicle trajectory
 
             else:
                 ellipse_angle = np.degrees(dimention.obs_direction)
-                if dimention.denom_x_root >= dimention.denom_y_root:
-                    ellipse_width = dimention.denom_x_root
-                    ellipse_height = dimention.denom_y_root
-                else:
-                    ellipse_width = dimention.denom_y_root
-                    ellipse_height = dimention.denom_x_root
+                ellipse_hight = dimention.denom_y_root
+                ellipse_width = dimention.denom_x_root
                 ellipse_x = obs.locate_obstacles[i][0] + obs.obs_velocity_vector[i][0]
                 ellipse_y = obs.locate_obstacles[i][1] + obs.obs_velocity_vector[i][1]   
-                ellipse_obs = pat.Ellipse(xy=(ellipse_x, ellipse_y), width=ellipse_width, height=ellipse_height, color="orange", alpha=0.8, angle=ellipse_angle)
+                ellipse_obs = pat.Ellipse(xy=(ellipse_x, ellipse_y), width=ellipse_width, height=ellipse_hight, color="orange", alpha=0.8, angle=ellipse_angle)
                 self.ploting_path.add_patch(ellipse_obs)
                 print("dynamic obs")    
                 self.ploting_path.plot(obstacles[i][0],obstacles[i][1], "xk")     
@@ -409,20 +404,16 @@ class proposal_the_other_dimension():
         self.kx ,self.ky = 10,10 #expand cofficient ellipse
         self.minimum_repluse_area = 5
         self.leading_interval_coefficient = 8
-        self.dynamic_repulse_k = 0.3
-        self.temp_goal_point = fgoal.locate_goal 
-        self.leading_interval = 12
-        self.leading_interval_max = self.leading_interval + 1
-        self.locate_leading_point = [veh1.locate_vehicles[0],veh1.locate_vehicles[1]]
-        #beliw init items are for the sake of processing order
         self.denom_x =0
-        self.denom_x_root = 1
+        self.denom_x_root = 0
         self.denom_y =0
-        self.denom_y_root = 1
+        self.denom_y_root = 0
+        self.locate_leading_point = [veh1.locate_vehicles[0],veh1.locate_vehicles[1]]
         self.dx = veh1.speed
         self.dy= veh1.speed
         self.obs_direction = 0
-        self.LP_location_1stepbefofore = 0
+        self.temp_goal_point = fgoal.locate_goal 
+        self.leading_interval = 5
     """
     def update_leading_point(self,locate_vehicles): #leading point moves by vehicle position and velocity
         self.dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
@@ -444,69 +435,30 @@ class proposal_the_other_dimension():
             #print("countcalc_guideponint",count_calc_guidepoint)
             count_calc_guidepoint += 1
             print("count update",count_calc_guidepoint)
-
-            if self.total_repulsive_force != 0:
-                self.judge_whereObscomefrom() #self.avoid_dynamicobs_flag gets the number of situation
-                self.reactiontodynamicobs()
-            if count_calc_guidepoint >40 and self.total_repulsive_force == 0:
+            if count_calc_guidepoint >200:
                 print("leading point is stuck")
-                self.locate_leading_point[0] += 0.1
-                count_calc_guidepoint = 0           
-            #print("leading interval",self.leading_interval)
-            if self.dist_leading2vehicle >= self.leading_interval_max:
-                flag = False
+                self.locate_leading_point[1] += 0.1
                 count_calc_guidepoint = 0
+            
+            #print("leading interval",self.leading_interval)
             if self.dist_leading2vehicle >= self.leading_interval:
                     flag = False
                     count_calc_guidepoint = 0
 
-    def judge_whereObscomefrom(self):
-       self.avoid_dynamicobs_flag = 0
-       if self.total_repulsive_force == None or self.total_repulsive_force == 0: #not effect dynamic poten, only update LP location
-           LP_location_2stepbefofore = self.LP_location_1stepbefofore
-           self.LP_location_1stepbefofore = self.locate_leading_point 
-       else: # if dynamic poten effect LP
-            vector1 = self.locate_leading_point - self.LP_location_1stepbefofore
-            vector2 = self.LP_location_1stepbefofore - LP_location_2stepbefofore
-            magnitude1 = np.linalg.norm(vector1)
-            magnitude2 = np.linalg.norm(vector2)
-            dot_product = np.dot(vector1, vector2)
-            # アークコサインを計算して角度を求める（ラジアン）
-            cos_theta = dot_product / (magnitude1 * magnitude2)
-            angle_radians = np.arccos(np.clip(cos_theta, -1.0, 1.0))
-            angle_whereobscomefrom = np.sin(angle_radians)
-            if self.direction_terms_forward[0] <= angle_whereobscomefrom <= self.direction_terms_forward[1]:
-                print("Observation is in the forward direction.")
-                self.avoid_dynamicobs_flag = 1
-            elif self.direction_terms_side[0] <= angle_whereobscomefrom <= self.direction_terms_side[1]:
-                print("Observation is in the side direction.")
-                self.avoid_dynamicobs_flag = 2
-            elif self.direction_terms_back[0] <= angle_whereobscomefrom <= self.direction_terms_back[1]:
-                print("Observation is in the backward direction.")
-                self.avoid_dynamicobs_flag = 3
-            else:
-                print("Observation is outside of the defined directions.")
-                self.avoid_dynamicobs_flag = 3
-                
-            self.LP_location_1stepbefofore = self.locate_leading_point 
-            LP_location_2stepbefofore = self.LP_location_1stepbefofore
-
-
-    def reactiontodynamicobs(self): #leading point moves by vehicle position and velocity
-        if self.avoid_dynamicobs_flag == 1:
-            print("obs comes from front, avoid ")
-            if temp_goal.temp_goal != None:
-                tempgoal4dynamic.integrate_temporarygoal(temp_goal.temp_goal, self.locate_leading_point, obs.locate_obstacles)
-            elif temp_goal.temp_goal == None:
-                tempgoal4dynamic.integrate_temporarygoal(fgoal.locate_goal, self.locate_leading_point, obs.locate_obstacles)
-
-        elif self.avoid_dynamicobs_flag == 2:
-            print("obs comes from sideways, decelerate ")
-
-        elif self.avoid_dynamicobs_flag == 3:
-            print("obs comes from itself back,but dont need to react  ")
+    def judge_whereObscomefrom(self): #leading point moves by vehicle position and velocity
+        if self.total_repulsive_force == None or self.total_repulsive_force == 0:
+            pass
         else:
-            print("donot have to avoid")
+            
+
+            pass
+    def calc_leading_point_potential(self):
+       if self.total_repulsive_force == None or self.total_repulsive_force == 0: #not effect dynamic poten, only update LP location
+           LP_location_1stepbefofore = self.locate_leading_point 
+           LP_location_2stepbefofore = LP_location_1stepbefofore
+       else: # if dynamic poten effect LP
+           
+        
         
     def calc_dynamic_repulsive(self, locate_leading_point, locate_obstacles ): #calculate dynamic repulse_force  ellipse shape
         self.total_repulsive_force = 0
@@ -538,13 +490,13 @@ class proposal_the_other_dimension():
                         dynamic_repulsive_area = (A)+(B) -1 # dynamic_repulsive_area <= 0 indicates in or out ellipse 
                         print("dynamic rep area",dynamic_repulsive_area)
                 if dynamic_repulsive_area <= 0:
-                    dynamic_repulsive_poten = 1*self.dynamic_repulse_k/np.sqrt((dynamic_repulsive_area +1))
+                    dynamic_repulsive_poten = 1/np.sqrt((dynamic_repulsive_area +1))
                     #print("vehicle in dynamic obs ellipse",dynamic_repulsive_poten)
                 else:
                     dynamic_repulsive_poten = 0
                 self.dynamic_repforce[id] = [self.denom_x,self.denom_y,numer_x,numer_y,dynamic_repulsive_area,dynamic_repulsive_poten]
                 self.total_repulsive_force += self.dynamic_repforce[id][5]
-        print("self.total_dynamic_repluse",self.total_repulsive_force)
+        #print("self.total_dynamic_repluse",self.total_repulsive_force)
         return self.total_repulsive_force
 
 def main(): 
@@ -585,8 +537,7 @@ def main():
             print("finish and show 3d")
             #anime_gif = ani.ArtistAnimation(path_fig.fig, animation_array, interval=100)
             #anime_gif.save("proposal_gif2.gif", writer="pillow")
-            #path_fig.plot_3d_potential()
-            plt.close()
+            path_fig.plot_3d_potential()
 
 
 if __name__ == '__main__':
@@ -597,7 +548,7 @@ if __name__ == '__main__':
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
     temp_goal = temporary_goal()
-    tempgoal4dynamic = temporary_goal()
+    
     animation_array = []
     main()
  
