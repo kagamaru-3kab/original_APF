@@ -287,7 +287,7 @@ class temporary_goal():
                 y = locate_vehicles[1] 
                 path_fig.ploting_path.plot(x, y, ".k")
         else:
-            print("set goal and start on same point")
+            print("set goal and start on the same point")
 
     def detect_obs_ontheline(self, locate_obs): #judge which obstacles on the line
         if len(locate_obs) != 0:
@@ -423,13 +423,7 @@ class proposal_the_other_dimension():
         self.dy= veh1.speed
         self.obs_direction = 0
         self.LP_location_1stepbefofore = 0
-    """
-    def update_leading_point(self,locate_vehicles): #leading point moves by vehicle position and velocity
-        self.dx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
-        self.dy = self.leading_interval_coefficient*veh1.vehicle_vector[1]
-        self.locate_leading_point = [locate_vehicles[0]+self.dx,locate_vehicles[1]+self.dy ]
-        #path_fig.ploting_path.plot(self.locate_leading_point[0],self.locate_leading_point[1], ".b")
-    """
+
     def update_leading_point(self,locate_goal):  #leading point moves by its potential
         self.before_locate_leading_point = self.locate_leading_point
         count_calc_guidepoint = 0
@@ -448,7 +442,7 @@ class proposal_the_other_dimension():
             if self.total_repulsive_force != 0:
                 self.judge_whereObscomefrom() #self.avoid_dynamicobs_flag gets the number of situation
                 self.reactiontodynamicobs()
-            if count_calc_guidepoint >40 and self.total_repulsive_force == 0:
+            if count_calc_guidepoint > 40 and self.total_repulsive_force == 0:
                 print("leading point is stuck")
                 self.locate_leading_point[0] += 0.1
                 count_calc_guidepoint = 0           
@@ -459,6 +453,10 @@ class proposal_the_other_dimension():
             if self.dist_leading2vehicle >= self.leading_interval:
                     flag = False
                     count_calc_guidepoint = 0
+        if tempgoal4dynamic.temp_goal != None:
+            return tempgoal4dynamic.temp_goal
+        else:
+            return tempgoal4dynamic.temp_goal = None
 
     def judge_whereObscomefrom(self):
        self.avoid_dynamicobs_flag = 0
@@ -499,9 +497,9 @@ class proposal_the_other_dimension():
                 tempgoal4dynamic.integrate_temporarygoal(temp_goal.temp_goal, self.locate_leading_point, obs.locate_obstacles)
             elif temp_goal.temp_goal == None:
                 tempgoal4dynamic.integrate_temporarygoal(fgoal.locate_goal, self.locate_leading_point, obs.locate_obstacles)
-
         elif self.avoid_dynamicobs_flag == 2:
             print("obs comes from sideways, decelerate ")
+            seld.vehicle_speed
 
         elif self.avoid_dynamicobs_flag == 3:
             print("obs comes from itself back,but dont need to react  ")
@@ -561,23 +559,35 @@ def main():
             judgereach_finalgoal = False
     if APF.dist_v2goal != None:
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal  
-            dimention.update_leading_point(target_goal)  
+            dynamic_temgoal = dimention.update_leading_point(target_goal)  
+            if dynamic_temgoal == None:
+                judge_exist_dynamic_goal = False
+            elif dynamic_temgoal != None:
+                target_goal = dynamic_goal
+                judge_exist_dynamic_goal = True
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
             duetoexpandmap = 15
             partialdiffer_x, partialdiffer_y = duetoexpandmap*partialdiffer_x, duetoexpandmap*partialdiffer_y #due to graph expaned, speed up
             #print("333partX delt X currentPoten",partialdiffer_x)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             obs.update_locate_obs()
-            
             path_fig._initialize_fig()
             print("veh, obs, veh.vector, leading point\n",veh1.locate_vehicles, obs.locate_obstacles, veh1.vehicle_vector,dimention.locate_leading_point)
             #print("partiald x y" , partialdiffer_x, partialdiffer_y)
             anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
             plt.pause(1.2)    
             plt.cla()
+
+        if judge_exist_dynamic_goal:
+            APF.dist_v2goal = None
+            print("reach DYNAMIC temporary goal but not reach final goal")
+            plt.pause(0.02)  
+            plt.cla()
+            return main()
+
         if judgereach_finalgoal:
             APF.dist_v2goal = None
-            print("reach tempo goal but not reach final goal")
+            print("reach temporary goal but not reach final goal")
             plt.pause(0.02)  
             plt.cla()
             return main()
