@@ -481,7 +481,7 @@ class proposal_the_other_dimension():
             if magnitude1 * magnitude2 != 0:
                 cos_theta = dot_product / (magnitude1 * magnitude2)
                 angle_radians = np.arccos(np.clip(cos_theta, -1.0, 1.0))
-                print("angle_comefrom",np.degrees(angle_radians))
+                print("angle_dot",np.degrees(angle_radians))
                 angle_whereobscomefrom = np.cos(angle_radians) #no need ,can be intead of above cos_theta
                 #print("costheta to angle_where ha same?", cos_theta, angle_whereobscomefrom)
             else:
