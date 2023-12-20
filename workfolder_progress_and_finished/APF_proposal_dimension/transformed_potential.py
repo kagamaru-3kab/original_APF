@@ -96,7 +96,6 @@ class calc_APF():
         self.obs_distandtheta = []
         for id in range(len(locate_obs)):
             self.dist_v2obs.append(np.sqrt((locate_obs[id][0]-locate_vehicles[0])**2+(locate_obs[id][1]-locate_vehicles[1])**2))
-                     
     def calc_attractive_force(self, locate_goal, locate_vehicles): #calculate attractive_force 
         self.calc_goal_dist_theta(locate_goal, locate_vehicles)
         if self.dist_v2goal == 0:
@@ -426,11 +425,17 @@ class proposal_the_other_dimension():
         self.LP_location_1stepbefore = [0,0]
         self.LP_location_2stepbefore = [0,0]
         self.countlimit = 200
+        self.locate_dynamicobs_adddelt = [[0,0]]
+
+        
 
     def update_leading_point(self,locate_goal):  #leading point moves by its potential
         count_calc_guidepoint = 0
         flag = True
         tempgoal4dynamic.temp_goal = None
+        for i in range(len(obs.dynamic_obs_id)): # use to shift tempgoal againt dynamic obs
+            self.locate_dynamicobs_adddelt[i][0] = obs.locate_obstacles[obs.dynamic_obs_id[i]][0]+obs.obs_velocity_vector[i][0]
+            self.locate_dynamicobs_adddelt[i][1] = obs.locate_obstacles[obs.dynamic_obs_id[i]][1]+obs.obs_velocity_vector[i][1]
         while flag:
             self.dx, self.dy = APF.route_creater_for_proposal_dynamic(locate_goal, self.locate_leading_point, obs.locate_obstacles)
             #print("dx  dy",self.dx,self.dy)
@@ -441,21 +446,21 @@ class proposal_the_other_dimension():
             #print("countcalc_guideponint",count_calc_guidepoint)
             count_calc_guidepoint += 1
             #print("count update",count_calc_guidepoint)
-            
-            if self.total_repulsive_force != 0:
-                self.judge_whereObscomefrom() #self.avoid_dynamicobs_flag gets the number of situation
-                self.reactiontodynamicobs()   #react something by result of self.judge_whereObscomefrom()
             if count_calc_guidepoint > self.countlimit and self.total_repulsive_force == 0:
                 print("leading point is stuck")
-                self.locate_leading_point[0] += 0.1
+                self.reset_LP_location()
                 count_calc_guidepoint = 0           
             #print("leading interval",self.leading_interval)
-            if self.dist_leading2vehicle >= self.leading_interval_max:
+            if self.total_repulsive_force != 0:
+                break
+            if self.dist_leading2vehicle >= self.leading_interval:
                 flag = False
                 count_calc_guidepoint = 0
-            if self.dist_leading2vehicle >= self.leading_interval:
-                    flag = False
-                    count_calc_guidepoint = 0
+
+        if self.total_repulsive_force != 0:
+                self.judge_whereObscomefrom() #self.avoid_dynamicobs_flag gets the number of situation
+                self.reactiontodynamicobs()   #react something by result of self.judge_whereObscomefrom() 
+
         self.countlimit = 40
         self.LP_location_2stepbefore = self.LP_location_1stepbefore
         self.LP_location_1stepbefore = self.locate_leading_point 
@@ -506,9 +511,9 @@ class proposal_the_other_dimension():
         if self.avoid_dynamicobs_flag == 1:
             print("obs comes from front, avoid ")
             if temp_goal.temp_goal != None:
-                tempgoal4dynamic.integrate_temporarygoal(temp_goal.temp_goal, self.locate_leading_point, obs.locate_obstacles)
+                tempgoal4dynamic.integrate_temporarygoal(temp_goal.temp_goal, self.locate_leading_point, self.locate_dynamicobs_adddelt)
             elif temp_goal.temp_goal == None:
-                tempgoal4dynamic.integrate_temporarygoal(fgoal.locate_goal, self.locate_leading_point, obs.locate_obstacles)
+                tempgoal4dynamic.integrate_temporarygoal(fgoal.locate_goal, self.locate_leading_point,self.locate_dynamicobs_adddelt)
         elif self.avoid_dynamicobs_flag == 2:
             print("obs comes from sideways, decelerate ")
             veh1.speed =  veh1.veh_maxspeed*(1 -self.total_repulsive_force)  #deceleretion vehicle speed upon self.total_repulsive_force
@@ -563,6 +568,13 @@ class proposal_the_other_dimension():
                 self.total_repulsive_force += self.dynamic_repforce[id][5]
         #print("self.total_dynamic_repluse",self.total_repulsive_force)
         return self.total_repulsive_force
+    
+    def reset_LP_location(self):
+        lpdx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
+        lpdy = self.leading_interval_coefficient*veh1.vehicle_vector[1]
+        self.locate_leading_point = [veh1.locate_vehicles[0]+lpdx, veh1.locate_vehicles[1]+lpdy ]
+        print("reset LP")
+        time.sleep(2)
 
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
