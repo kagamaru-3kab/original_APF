@@ -1,7 +1,7 @@
 """
 proposal dimension
 potential map をグラフに表示
-
+complete
 """
 import numpy as np
 from matplotlib import pyplot as plt
