@@ -1,7 +1,7 @@
 """
 proposal dimension
 potential map をグラフに表示
-
+complete
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -560,7 +560,7 @@ class proposal_the_other_dimension():
                 print("!!!!!obs comes from front, avoid ")
                 tempgoal4dynamic.integrate_temporarygoal(fgoal.locate_goal, self.locate_leading_point,self.locate_dynamicobs_adddelt)
                 if tempgoal4dynamic.temp_goal != None:
-                    tempgoal4dynamic.temp_goal = [a + 3*b for a, b in zip(tempgoal4dynamic.temp_goal, obs.obs_velocity_vector[tempgoal4dynamic.nearest_obs[0]])]
+                    tempgoal4dynamic.temp_goal = [a + 2*b for a, b in zip(tempgoal4dynamic.temp_goal, obs.obs_velocity_vector[tempgoal4dynamic.nearest_obs[0]])]
                     self.dx, self.dy = APF.route_creater_for_proposal_dynamic(tempgoal4dynamic.temp_goal, self.locate_leading_point, obs.locate_obstacles)
                     #print("dx  dy",self.dx,self.dy)
                     path_fig.ploting_path.plot(tempgoal4dynamic.temp_goal[0], tempgoal4dynamic.temp_goal[1], "xy")
@@ -662,7 +662,7 @@ def main():
                 target_goal = dynamic_temgoal
                 judge_exist_dynamic_goal = True
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
-            duetoexpandmap = 15
+            duetoexpandmap = 10
             partialdiffer_x, partialdiffer_y = duetoexpandmap*partialdiffer_x, duetoexpandmap*partialdiffer_y #due to graph expaned, speed up
             #print("333partX delt X currentPoten",partialdiffer_x)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]

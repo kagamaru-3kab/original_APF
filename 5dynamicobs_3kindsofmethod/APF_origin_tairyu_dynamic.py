@@ -9,6 +9,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import patches as pat
 from matplotlib import cm
+from openpyxl import Workbook
+import copy
 
 class goal():                          
     def __init__(self, locate, area):
@@ -35,12 +37,12 @@ class obstacles():
         Content: update location dynamic obstacles ,assign dynamic obs id and displacement
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
-        dynamic_obs_id = [0]
-        self.obs_velocity_vector = [-0.1, 0.08]#needed proposal dimension
+        dynamic_obs_id = [0,1]
+        self.obs_velocity_vector = [[-0.5,0],[-0.5, -0.5]]#needed proposal dimension
 
         for d in range(len(dynamic_obs_id)): 
-           self.locate_obstacles[dynamic_obs_id[d]][0] += self.obs_velocity_vector[0]
-           self.locate_obstacles[dynamic_obs_id[d]][1] += self.obs_velocity_vector[1]
+           self.locate_obstacles[dynamic_obs_id[d]][0] += self.obs_velocity_vector[d][0]
+           self.locate_obstacles[dynamic_obs_id[d]][1] += self.obs_velocity_vector[d][1]
         
 
 class vehicles():
@@ -52,6 +54,7 @@ class vehicles():
         """
         self.diameter = 0.5
         self.speed    = 0.1
+        self.init_locate = init_locate
         self.locate_vehicles = init_locate
     
     def get_locate(self, locate):     #update vehicle position
@@ -155,6 +158,7 @@ class calc_APF():
                 tairyuy = 1
         if tairyux == 1 and tairyuy == 1:
             print("tairyuuuuuu")
+            veh1.locate_vehicles = fgoal.locate_goal
         self.before_flagx = flagx
         self.before_flagy = flagy
         return partialdiffer_x, partialdiffer_y
@@ -173,7 +177,7 @@ class plot_path(): #plot vehicle trajectory
         self._initialize_fig()
 
     def _initialize_fig(self):
-        self.graph_range = [0, 60]
+        self.graph_range = [0, 150]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
         self.ploting_path.plot(self.start_position[0], self.start_position[1], "*r")
@@ -222,20 +226,67 @@ def main():
     if APF.dist_v2goal != None:
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:
             partialdiffer_x, partialdiffer_y = APF.route_creater(fgoal.locate_goal, veh1.locate_vehicles, obs.locate_obstacles)
+            coefficient = 3
+            partialdiffer_x, partialdiffer_y =coefficient*partialdiffer_x,coefficient*partialdiffer_y 
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
             obs.update_locate_obs()
+            excel_data_route.append(veh1.locate_vehicles)
+            obs_locatecopy = copy.deepcopy(obs.locate_obstacles)
+            obs_trajectry.append(obs_locatecopy)
+            if any(dist < 2 for dist in APF.dist_v2obs):
+                hitcount[0] +=1
+                print("APF.dist_v2obs の中に 1 以上の要素が存在します。",hitcount[0])
             path_fig._initialize_fig()
             path_fig.plot_vehicle(veh1.locate_vehicles)
             plt.pause(0.02)
             plt.cla()
         print("finish and show 3d")
-        path_fig.plot_3d_potential()
+        #path_fig.plot_3d_potential()
+        wb = Workbook()
+        ws = wb.active
+        previous_max_column = 0
+        previous_max = 0
+        label_list = ['V_traject_X', 'V_traject_Y', 'obs_locate_x', 'obs_locate_y','obs_speed_x','obs_speed_y','hitcount']
+        for col_index, value in enumerate(label_list, start=1):
+                    cell = ws.cell(row=1, column=col_index, value=value)
+
+        for row_index, row in enumerate(excel_data_route, start=2):
+            for col_index, value in enumerate(row, start=1):
+                cell = ws.cell(row=row_index, column=col_index, value=value)
+                if previous_max < col_index + previous_max_column:
+                    previous_max = col_index + previous_max_column
+        previous_max_column = previous_max
+        # obs_trajectry の処理
+        previous_max = 0
+        for row_index, row_data in enumerate(obs_trajectry, start=2):
+            for col_index, value in enumerate(row_data[0], start=1):
+                cell = ws.cell(row=row_index, column=previous_max_column+col_index, value=value)
+                if previous_max < col_index + previous_max_column:
+                    previous_max = col_index + previous_max_column
+        previous_max_column = previous_max
+        # obs.obs_velocity_vector の処理
+        previous_max = 0
+        for row_index, row in enumerate(obs.obs_velocity_vector, start=2):
+            for col_index, value in enumerate(row, start=1):
+                cell = ws.cell(row=row_index, column= previous_max_column+col_index, value=value)
+                if previous_max < col_index + previous_max_column:
+                    previous_max = col_index + previous_max_column
+        previous_max_column = previous_max
+        
+        cell = ws.cell(row=2, column= previous_max_column+1, value=hitcount[0])
+                
+        # Excelファイルに保存
+        wb.save('4research_APF_fig\excel_date/originalpotential_mix_2d_sidefront.xlsx')
 
 if __name__ == '__main__':
-    fgoal = goal([50,50],10)
-    obs = obstacles([[15,20],[20,20]])
+    fgoal = goal([70,70],10)
+    obs = obstacles([[55,20],[90,90]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
+    excel_data_route = []
+    excel_data_route.append(veh1.init_locate)
+    obs_trajectry = []
+    hitcount = [0]
     main()
     

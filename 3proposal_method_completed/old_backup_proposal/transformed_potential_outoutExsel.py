@@ -1,7 +1,9 @@
 """
+update to Revised_transformed_potential_outoutExsel
 proposal dimension
 potential map をグラフに表示
 complete
+exsel output
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -9,6 +11,9 @@ from matplotlib import patches as pat
 from matplotlib import cm
 from math import cos, sin
 import time
+from openpyxl import Workbook
+import copy
+
 
 class goal():                          
     def __init__(self, locate, area):
@@ -16,24 +21,24 @@ class goal():
         #Content:set up goal 
         diameter_size: size 実際の大きさ
         locate: goal position[x,y]  
-        attracted_area: effective area [int a]影響を与える範囲
+        #attracted_area: effective area [int a]影響を与える範囲
         """
-        self.diameter_size = 0.1        
+        self.diameter_size = 0.5       
         self.locate_goal = locate
-        self.attracted_area = area
+        #self.attracted_area = area
     
     def get_locate(self, locate):
         self.locate_goal = locate
 
 class obstacles():
-    def __init__(self, obstacles = None):  
+    def __init__(self, obstacles):  
         """   
         Content: set up obstacles
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         self.locate_obstacles = obstacles
         self.dynamic_obs_id = [0]
-        self.obs_velocity_vector = [[-4, -4]]#needed proposal dimension
+        self.obs_velocity_vector = [[-1, 1]]#needed proposal dimension
     
     def update_locate_obs(self):
         """   
@@ -55,6 +60,7 @@ class vehicles():
         self.diameter = 0.5
         self.veh_maxspeed = 0.15
         self.speed    = self.veh_maxspeed
+        self.init_locate = init_locate
         self.locate_vehicles = init_locate
         self.beforestep_vehicle = init_locate
         self.vehicle_vector = [self.speed, self.speed]
@@ -155,20 +161,29 @@ class calc_APF():
         delt_poten_x = 0
         delt_poten_y = 0
         veh1.find_vehicle_vector(veh1.locate_vehicles)
+        #self.attracte_k = 1 #To respond more sensitively to dynamic obstacles
         current_potential = self.calc_sum_potentialforce(locate_goal, locate_leading, locate_obs)
-        dynamic_repulse_force = dimention.calc_dynamic_repulsive(dimention.locate_leading_point,locate_obs)
-        current_potential += dynamic_repulse_force
+        self.dynamic_repulse_force = dimention.calc_dynamic_repulsive(dimention.locate_leading_point,locate_obs)
+        current_potential += self.dynamic_repulse_force
         delt_poten_x = self.calc_sum_potentialforce(locate_goal, [locate_leading[0]+self.vehicles_speed, locate_leading[1]], locate_obs) #止まってる障害物からの反力しか影響ないので，動く障害物だけのときは，attractive forceのみ返る
         delt_poten_y = self.calc_sum_potentialforce(locate_goal, [locate_leading[0] ,locate_leading[1]+self.vehicles_speed], locate_obs)
         delt_dynamic_x = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0]+self.vehicles_speed ,dimention.locate_leading_point[1]],locate_obs)
         delt_dynamic_y = dimention.calc_dynamic_repulsive([dimention.locate_leading_point[0], dimention.locate_leading_point[1]+self.vehicles_speed],locate_obs)
+        if delt_dynamic_x > 0 or delt_dynamic_y > 0:
+            self.next_LP_might_have_dynamicrepulse = delt_dynamic_x if delt_dynamic_x >= delt_dynamic_y else delt_dynamic_y
+        else: 
+            self.next_LP_might_have_dynamicrepulse = 0
+        #print("\ndeltax,delty",delt_poten_x,delt_poten_y)
+        #print("Dynamic deltx,delty",delt_dynamic_x,delt_dynamic_y)
+        #print(" dynamic total force",self.dynamic_repulse_force)
+        #print("current force", current_potential)
         partialdiffer_x = (delt_poten_x + delt_dynamic_x)- current_potential #partialdiffer > 0 push back, <0 go ahead in short delt <current push back
-        #print("partX =delt X- currentPoten",partialdiffer_x, delt_poten_x, current_potential)
-        partialdiffer_y = (delt_poten_y+ delt_dynamic_y) - current_potential
+        partialdiffer_y = (delt_poten_y+ delt_dynamic_y) - current_potential #個々の段階ではpartialは負だと，後で-1かけて前に進む正になる
+        #print("part x, y", partialdiffer_x, partialdiffer_y)
         synthesis_v = np.sqrt(partialdiffer_x**2+partialdiffer_y**2)
         partialdiffer_x /=synthesis_v/self.vehicles_speed*-1   #正規化らしい +-change 
         partialdiffer_y /=synthesis_v/self.vehicles_speed*-1
-        #print("222partX delt X currentPoten",partialdiffer_x, delt_poten_x, current_potential)
+        #print("after nomalized part x, y", partialdiffer_x, partialdiffer_y,synthesis_v)
         return partialdiffer_x, partialdiffer_y
 
 class plot_path(): #plot vehicle trajectory
@@ -261,6 +276,7 @@ class temporary_goal():
     def __init__(self):
         self.tmp_goal_locate = None
         self.nearest_obs = None
+        self.delta_fromobs = 1 #distance from circle
 
     def calc_line_from_start2goal(self, locate_goal, locate_vehicles): #calc coefficient of line which pass start and goal 
         self.a = locate_goal[1]-locate_vehicles[1]
@@ -304,15 +320,15 @@ class temporary_goal():
                     if locate_obs[i][0] <= veh1.locate_vehicles[0] and locate_obs[i][0] >= fgoal.locate_goal[0]:
                         Numerator = abs(self.a*locate_obs[i][0]+self.b*locate_obs[i][1]+self.c)
                     else:
-                        Numerator = -1
+                        Numerator = -2
                 else:
-                    Numerator = -1
+                    Numerator = -3
                 if Numerator > 0:
                     dist_from_line[i] = Numerator/self.Denominator
                 elif Numerator == 0:
                     dist_from_line[i] = 0
                 else:
-                    print("Numerator is < 0 because target_goal is out of range")
+                    print("Numerator is < 0 because target_goal is out of range",Numerator)
                     dist_from_line[i] = APF.repulsed_area + 1
                 #print("id + dist_from_line", i, dist_from_line[i])
                 if dist_from_line[i] < APF.repulsed_area:
@@ -343,15 +359,15 @@ class temporary_goal():
             self.nearest_obs = None
 
     def calc_tempgoal_locate(self, Dfortemp, temp_locate): #ref https://qiita.com/tydesign/items/36b42465b3f5086bd0c5
-        delta_fromobs = 1
-        aD = self.slope_nomal*Dfortemp
+        #move  to init ->self.delta_fromobs = 1 #distance from circle
+        aD = self.slope_nomal*Dfortemp  #y=a*x+c -> a*x-1*y+c
         a2b2 = self.slope_nomal**2 + 1**2
-        rr = APF.repulsed_area**2
-        contain_root = np.sqrt((a2b2*rr) - Dfortemp**2)
+        self.rrr = APF.repulsed_area**2
+        contain_root = np.sqrt((a2b2*self.rrr) - Dfortemp**2)
         x1 = (aD - contain_root)/a2b2
-        x1 += temp_locate[0] -delta_fromobs
+        x1 += temp_locate[0] -self.delta_fromobs
         x2 = (aD + contain_root)/a2b2
-        x2 += temp_locate[0] +delta_fromobs
+        x2 += temp_locate[0] +self.delta_fromobs
         y1 = self.slope_nomal*x1 +self.intercept_nomal
         y2 = self.slope_nomal*x2 +self.intercept_nomal
         p1 = [x1,y1]
@@ -403,16 +419,15 @@ class proposal_the_other_dimension():
     kx, ky :coefficient with denominator of elipse
     """
     def __init__(self):
-        self.direction_terms_forward = [np.cos(np.radians(180)), np.cos(np.radians(150))]
-        self.direction_terms_side = [np.cos(np.radians(120)), np.cos(np.radians(30))]
+        self.direction_terms_forward = [np.cos(np.radians(180)), np.cos(np.radians(160))]
+        self.direction_terms_side = [np.cos(np.radians(160)), np.cos(np.radians(30))]
         self.direction_terms_back = [np.cos(np.radians(30)), np.cos(np.radians(0))]
         self.kx ,self.ky = 10,10 #expand cofficient ellipse
-        self.minimum_repluse_area = 5
-        self.leading_interval_coefficient = 8
-        self.dynamic_repulse_k = 0.3
+        self.minimum_repluse_area = 8
+        self.dynamic_repulse_k = 0.5
         self.temp_goal_point = fgoal.locate_goal 
-        self.leading_interval = 12
-        self.leading_interval_max = self.leading_interval + 1
+        self.leading_interval = 10
+        self.leading_interval_max = self.leading_interval 
         self.locate_leading_point = [veh1.locate_vehicles[0]+veh1.vehicle_vector[0],veh1.locate_vehicles[1]+veh1.vehicle_vector[1]]
         #beliw init items are for the sake of processing order
         self.denom_x =0
@@ -424,46 +439,65 @@ class proposal_the_other_dimension():
         self.obs_direction = 0
         self.LP_location_1stepbefore = [0,0]
         self.LP_location_2stepbefore = [0,0]
-        self.countlimit = 200
+        self.countlimit = 100
         self.locate_dynamicobs_adddelt = [[0,0]]
-
+        self.reacting_now = 1
+        self.flag_react = True 
         
-
     def update_leading_point(self,locate_goal):  #leading point moves by its potential
         count_calc_guidepoint = 0
         flag = True
         tempgoal4dynamic.temp_goal = None
+        self.tempdynamicgoal_flag = False
+        self.first_react = False
         for i in range(len(obs.dynamic_obs_id)): # use to shift tempgoal againt dynamic obs
             self.locate_dynamicobs_adddelt[i][0] = obs.locate_obstacles[obs.dynamic_obs_id[i]][0]+obs.obs_velocity_vector[i][0]
             self.locate_dynamicobs_adddelt[i][1] = obs.locate_obstacles[obs.dynamic_obs_id[i]][1]+obs.obs_velocity_vector[i][1]
         while flag:
-            self.dx, self.dy = APF.route_creater_for_proposal_dynamic(locate_goal, self.locate_leading_point, obs.locate_obstacles)
-            #print("dx  dy",self.dx,self.dy)
+            self.dx, self.dy = APF.route_creater_for_proposal_dynamic(locate_goal, self.locate_leading_point, obs.locate_obstacles) #get total_dynamic_repluse and return partdx,dy
+            #self.locate_leading_point = [self.locate_leading_point[0]+self.dx, self.locate_leading_point[1]+self.dy ]
+            self.judge_whereObscomefrom() #self.avoid_dynamicobs_flag gets the number of situation
+            if self.flag_react:
+                self.reactiontodynamicobs(locate_goal)   #react something by result of self.judge_whereObscomefrom() ,return new temp_goal or decelerate or no react
+            elif self.flag_react == False:
+                coefficient_dxdy = 2
+                self.dx = coefficient_dxdy*self.dx
+                self.dy = coefficient_dxdy*self.dy
             self.locate_leading_point = [self.locate_leading_point[0]+self.dx, self.locate_leading_point[1]+self.dy ]
             self.dist_leading2vehicle = np.sqrt((self.locate_leading_point[0]-veh1.locate_vehicles[0])**2+(self.locate_leading_point[1]-veh1.locate_vehicles[1])**2)
             self.dist_leading2goal = np.sqrt((locate_goal[0]-self.locate_leading_point[0])**2+(locate_goal[1]-self.locate_leading_point[1])**2)
             self.dist_v2goal = np.sqrt((locate_goal[0]-veh1.locate_vehicles[0])**2+(locate_goal[1]-veh1.locate_vehicles[1])**2)
-            #print("countcalc_guideponint",count_calc_guidepoint)
-            count_calc_guidepoint += 1
+            #print("dist_LP2vehicle",self.dist_leading2vehicle)
             #print("count update",count_calc_guidepoint)
-            if count_calc_guidepoint > self.countlimit and self.total_repulsive_force == 0:
+            
+            if self.dist_leading2vehicle >= self.leading_interval: #if LP is farther than the specified interval, the loop stops
+                flag = False
+                print("loop end self.dist_leading2vehicle >= self.leading_interval")
+            
+            if self.dist_leading2goal < fgoal.diameter_size:
+                flag = False
+
+            if count_calc_guidepoint > self.countlimit : #if the count is more than the limit, reset LP position
                 print("leading point is stuck")
                 self.reset_LP_location()
-                count_calc_guidepoint = 0           
-            #print("leading interval",self.leading_interval)
-            if self.total_repulsive_force != 0:
-                break
-            if self.dist_leading2vehicle >= self.leading_interval:
+                count_calc_guidepoint = 0 
+
+            if self.reacting_now == 0: #can react the same obs only once, next getting 0 dynamic repulse enables reactiontodynamicobs to react: この中はreact中の時のみ発動
+                self.flag_react = False
+                self.leading_interval = 6
+                
+
+            if self.first_react : #if reactiontodynamicobs react, the loop is ended
                 flag = False
-                count_calc_guidepoint = 0
-
-        if self.total_repulsive_force != 0:
-                self.judge_whereObscomefrom() #self.avoid_dynamicobs_flag gets the number of situation
-                self.reactiontodynamicobs()   #react something by result of self.judge_whereObscomefrom() 
-
-        self.countlimit = 40
+                print("first react")
+            #print("dx dy for LP, location", self.dx ,self.dy,self.locate_leading_point)
+            count_calc_guidepoint += 1
+            #path_fig.ploting_path.plot(dimention.locate_leading_point[0],dimention.locate_leading_point[1], ".b")
+        self.countlimit = 30 #the second calc use this limit
+        #print(" LP-LP1,LP",self.locate_leading_point,self.LP_location_1stepbefore,self.LP_location_2stepbefore)
         self.LP_location_2stepbefore = self.LP_location_1stepbefore
         self.LP_location_1stepbefore = self.locate_leading_point 
+        
         if tempgoal4dynamic.temp_goal != None:
             return tempgoal4dynamic.temp_goal
         else:
@@ -472,61 +506,92 @@ class proposal_the_other_dimension():
 
     def judge_whereObscomefrom(self):
         self.avoid_dynamicobs_flag = 0
-        if self.total_repulsive_force == None or self.total_repulsive_force == 0: #not effect dynamic poten, only update LP location
-            print("error why total_repulse is 0 or None?") 
-        else: # if dynamic poten effect LP
+        if APF.dynamic_repulse_force != 0 or APF.next_LP_might_have_dynamicrepulse != 0 : # if dynamic poten effect LP
             vector1 = [self.locate_leading_point[i]- self.LP_location_1stepbefore[i] for i in range(2)]
             vector2 = [self.LP_location_1stepbefore[i] - self.LP_location_2stepbefore[i] for i in range(2)]
-            print("vec1 LP-LP1",vector1,self.locate_leading_point,self.LP_location_1stepbefore)
-            print("vec2 LP1-LP2",vector2,self.LP_location_2stepbefore)
-            magnitude1 = np.linalg.norm(vector1)
-            magnitude2 = np.linalg.norm(vector2)
-            dot_product = np.dot(vector1, vector2)
-            # アークコサインを計算して角度を求める（ラジアン）
-            if magnitude1 * magnitude2 != 0:
-                cos_theta = dot_product / (magnitude1 * magnitude2)
+            print(".......vec1 LP-LP1",vector1,self.locate_leading_point,self.LP_location_1stepbefore)
+            print(".......vec2 LP1-LP2",vector2,self.LP_location_2stepbefore)
+
+            V1 = np.array([vector1])  # ベクトルの引き算を試してみる
+            V2 = np.array([vector2])
+            V3 = V1 - V2 #V3は今と１つ前のベクトル変化に加わったベクトル
+            #print("ベクトル3:", V3)
+            magnitudeV2 = np.linalg.norm(V2)
+            magnitudeV3 = np.linalg.norm(V3)
+            dot_product_V2V3 = np.dot(V2, V3[0])
+            if magnitudeV2 * magnitudeV3 != 0 :
+                cos_theta = dot_product_V2V3 / (magnitudeV2 * magnitudeV3)
                 angle_radians = np.arccos(np.clip(cos_theta, -1.0, 1.0))
+                print("magnitude2 size",magnitudeV2)
                 print("angle_dot",np.degrees(angle_radians))
                 angle_whereobscomefrom = np.cos(angle_radians) #no need ,can be intead of above cos_theta
                 #print("costheta to angle_where ha same?", cos_theta, angle_whereobscomefrom)
             else:
                 # ゼロでの除算を回避する
-                angle_whereobscomefrom = 2 #2 is out of range sinX
+                angle_whereobscomefrom = 2 #2 is out of range sinX   
+                print("Either mag1 or mag2 vector have 0")
 
             if self.direction_terms_forward[0] <= angle_whereobscomefrom <= self.direction_terms_forward[1]:
-                print("Observation is in the forward direction.")
+                #print("Observation is in the forward direction.")
                 self.avoid_dynamicobs_flag = 1
+
             elif self.direction_terms_side[0] <= angle_whereobscomefrom <= self.direction_terms_side[1]:
-                print("Observation is in the side direction.")
+                #print("Observation is in the side direction.")
                 self.avoid_dynamicobs_flag = 2
+
             elif self.direction_terms_back[0] <= angle_whereobscomefrom <= self.direction_terms_back[1]:
-                print("Observation is in the backward direction.")
+                #print("Observation is in the backward direction.")
                 self.avoid_dynamicobs_flag = 3
+
             else:
                 print("Observation is outside of the defined directions.")
-                self.avoid_dynamicobs_flag = 3
+                self.avoid_dynamicobs_flag = 0
+        else : #LP has no total dynamic poten and LP+delt has no delt_dynamic_XY
+            #print(" total_repulse is 0 or None and deltdynamic_xy = 0") 
+            APF.vehicles_speed =  veh1.veh_maxspeed
+            self.reacting_now = 1
+            self.flag_react = True 
+            self.leading_interval = self.leading_interval_max
+            #print("restore LP interval")
 
 
-    def reactiontodynamicobs(self): #leading point moves by vehicle position and velocity
-        if self.avoid_dynamicobs_flag == 1:
-            print("obs comes from front, avoid ")
-            if temp_goal.temp_goal != None:
-                tempgoal4dynamic.integrate_temporarygoal(temp_goal.temp_goal, self.locate_leading_point, self.locate_dynamicobs_adddelt)
-            elif temp_goal.temp_goal == None:
+    def reactiontodynamicobs(self,locate_goal): #leading point moves by vehicle position and velocity
+        if self.reacting_now == 1:# need to launch this func only once
+            #print("reacting now",self.avoid_dynamicobs_flag)
+            tempgoal4dynamic.temp_goal = None
+            if self.avoid_dynamicobs_flag == 1:
+                self.reacting_now = 0
+                tempgoal4dynamic.delta_fromobs = 1.5
+                tempgoal4dynamic.rrr = self.denom_x if self.denom_x >= self.denom_y else self.denom_y
+                print("!!!!!obs comes from front, avoid ")
                 tempgoal4dynamic.integrate_temporarygoal(fgoal.locate_goal, self.locate_leading_point,self.locate_dynamicobs_adddelt)
-        elif self.avoid_dynamicobs_flag == 2:
-            print("obs comes from sideways, decelerate ")
-            veh1.speed =  veh1.veh_maxspeed*(1 -self.total_repulsive_force)  #deceleretion vehicle speed upon self.total_repulsive_force
-            if veh1.speed < 0:
-                veh1.speed = 0
-            elif veh1.speed > 0:
-                veh1.speed = veh1.veh_maxspeed                
-            print("change vehicle speed because of obs coming from sideways",veh1.speed)
-        elif self.avoid_dynamicobs_flag == 3:
-            print("obs comes from itself back,but dont need to react  ")
-        else:
-            veh1.speed =  veh1.veh_maxspeed
-            print("donot have to avoid")
+                if tempgoal4dynamic.temp_goal != None:
+                    tempgoal4dynamic.temp_goal = [a + 2.5*b for a, b in zip(tempgoal4dynamic.temp_goal, obs.obs_velocity_vector[tempgoal4dynamic.nearest_obs[0]])]
+                    self.dx, self.dy = APF.route_creater_for_proposal_dynamic(tempgoal4dynamic.temp_goal, self.locate_leading_point, obs.locate_obstacles)
+                    #print("dx  dy",self.dx,self.dy)
+                    path_fig.ploting_path.plot(tempgoal4dynamic.temp_goal[0], tempgoal4dynamic.temp_goal[1], "xy")
+                    #self.tempdynamicgoal_flag = True
+                    self.first_react = True
+                    print("veh,  obs  tempgoal",veh1.locate_vehicles,obs.locate_obstacles,tempgoal4dynamic.temp_goal)
+            elif self.avoid_dynamicobs_flag == 2:
+                self.reacting_now = 0
+                print("!!!!!obs comes from sideways, decelerate ")
+                APF.vehicles_speed =  veh1.veh_maxspeed*(1 -APF.dynamic_repulse_force)  #deceleretion vehicle speed upon self.total_repulsive_force
+                print("decelerae",veh1.speed)
+                if APF.vehicles_speed < 0:
+                    APF.vehicles_speed = 0
+                self.dx, self.dy = APF.route_creater_for_proposal_dynamic(locate_goal, self.locate_leading_point, obs.locate_obstacles)   
+                self.first_react = True
+                print("change vehicle speed because of obs coming from sideways",veh1.speed,veh1.veh_maxspeed,APF.dynamic_repulse_force)
+            
+            elif self.avoid_dynamicobs_flag == 3:
+                print("!!!!!obs comes from itself back,but dont need to react  ")
+                APF.vehicles_speed = veh1.veh_maxspeed 
+                self.reacting_now = 0
+            
+            else:
+                APF.vehicles_speed =  veh1.veh_maxspeed
+                #print("donot have to avoid")
         
     def calc_dynamic_repulsive(self, locate_leading_point, locate_obstacles ): #calculate dynamic repulse_force  ellipse shape
         self.total_repulsive_force = 0
@@ -550,7 +615,7 @@ class proposal_the_other_dimension():
                 rotated_xy = np.dot(rot, v)
                 numer_x = (rotated_xy[0])**2
                 numer_y = (rotated_xy[1])**2
-                if self.denom_x + self.denom_y == 0:
+                if self.denom_x * self.denom_y == 0:
                     dynamic_repulsive_area = 1 # error deal
                 else:   
                         A = 0 if self.denom_x == 0 else (numer_x/self.denom_x)
@@ -560,7 +625,7 @@ class proposal_the_other_dimension():
                 if dynamic_repulsive_area <= 0:
                     dynamic_repulsive_poten = 1*self.dynamic_repulse_k/np.sqrt((dynamic_repulsive_area +1))
                     #print("dynamic rep area",dynamic_repulsive_area)
-                    time.sleep(0.2)  
+                    #time.sleep(0.2)  
                     #print("vehicle in dynamic obs ellipse",dynamic_repulsive_poten)
                 else:
                     dynamic_repulsive_poten = 0
@@ -570,11 +635,22 @@ class proposal_the_other_dimension():
         return self.total_repulsive_force
     
     def reset_LP_location(self):
-        lpdx = self.leading_interval_coefficient*veh1.vehicle_vector[0]
-        lpdy = self.leading_interval_coefficient*veh1.vehicle_vector[1]
-        self.locate_leading_point = [veh1.locate_vehicles[0]+lpdx, veh1.locate_vehicles[1]+lpdy ]
-        print("reset LP")
-        time.sleep(2)
+        self.locate_leading_point = [veh1.locate_vehicles[0]+veh1.vehicle_vector[0], veh1.locate_vehicles[1]+veh1.vehicle_vector[1]]
+        print("reset LP", self.locate_leading_point)
+        self.countlimit = 200
+        
+    def reset_LP_location_for_dynamic_tmp_goal(self):
+        #self.locate_leading_point = [(veh1.locate_vehicles[0]+tempgoal4dynamic.temp_goal[0])/2, (veh1.locate_vehicles[1]+tempgoal4dynamic.temp_goal[1])/2]
+        #self.locate_leading_point = [(veh1.locate_vehicles[0]+tempgoal4dynamic.temp_goal[0]), (veh1.locate_vehicles[1]+tempgoal4dynamic.temp_goal[0])]
+        offset = 0.2
+        coordinate1 = [(veh1.locate_vehicles[0]+tempgoal4dynamic.temp_goal[0])/2, (veh1.locate_vehicles[1]+tempgoal4dynamic.temp_goal[1])/2]
+        self.locate_leading_point =[(1 - offset) * coordinate1[0] + offset * tempgoal4dynamic.temp_goal[0],(1 - offset) * coordinate1[1] + offset * tempgoal4dynamic.temp_goal[1]]
+        print("reset LP for dynamic", self.locate_leading_point)
+        self.countlimit = 200
+
+# 長さが足りない部分をNaNで埋めてリストを拡張
+def extend_list(lst, length):
+    return lst + [np.nan] * (length - len(lst))
 
 def main(): 
     if APF.dist_v2goal == None:   #clac distance to reach goal at first time
@@ -588,51 +664,122 @@ def main():
         elif temp_goal.temp_goal == None:
             target_goal = fgoal.locate_goal
             judgereach_finalgoal = False
+        judge_exist_dynamic_goal = False
     if APF.dist_v2goal != None:
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal  
             dynamic_temgoal = dimention.update_leading_point(target_goal)  
-            if dynamic_temgoal == None:
-                judge_exist_dynamic_goal = False
-            elif dynamic_temgoal != None:
+            if dynamic_temgoal != None:
                 target_goal = dynamic_temgoal
                 judge_exist_dynamic_goal = True
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
-            duetoexpandmap = 15
+            duetoexpandmap = 10
             partialdiffer_x, partialdiffer_y = duetoexpandmap*partialdiffer_x, duetoexpandmap*partialdiffer_y #due to graph expaned, speed up
             #print("333partX delt X currentPoten",partialdiffer_x)
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
+            excel_data_route.append(veh1.locate_vehicles)
+            effect_dynamic_rep.append(dimention.total_repulsive_force)
+            obs_locatecopy = copy.deepcopy(obs.locate_obstacles)
+            obs_trajectry.append(obs_locatecopy)
+            
+            if target_goal == None:
+                target_goal_record.append([0,0])
+            else:
+                target_goal_record.append(target_goal)
+
+            if dimention.first_react and dynamic_temgoal != None:
+                dimention.reset_LP_location_for_dynamic_tmp_goal()
+                print("reset LP position in Main loop. vehicle, LP, tempgoal",veh1.locate_vehicles,dimention.locate_leading_point, target_goal)
             obs.update_locate_obs()
             path_fig._initialize_fig()
             #print("veh, obs, veh.vector, leading point\n",veh1.locate_vehicles, obs.locate_obstacles, veh1.vehicle_vector,dimention.locate_leading_point)
-            #print("partiald x y" , partialdiffer_x, partialdiffer_y)
+            #print("partiald x y" , partialdiffer_x, partialdiffer_y,APF.dist_v2goal - veh1.diameter)
             anime_array_source = path_fig.plot_vehicle(veh1.locate_vehicles)
-            plt.pause(0.7)    
+            plt.pause(0.1)    
             plt.cla()
 
-        if judge_exist_dynamic_goal:
+        if judge_exist_dynamic_goal or judgereach_finalgoal:
             APF.dist_v2goal = None
-            print("reach DYNAMIC temporary goal but not reach final goal")
-            plt.pause(0.02)  
-            plt.cla()
+            print("reach DYNAMIC temporary goalot temp_goal but not reach final goal")
+            #time.sleep(0.02)  
             return main()
-
-        if judgereach_finalgoal:
-            APF.dist_v2goal = None
-            print("reach temporary goal but not reach final goal")
-            plt.pause(0.02)  
-            plt.cla()
-            return main()
+        
         else:
             print("finish and show 3d")
             #anime_gif = ani.ArtistAnimation(path_fig.fig, animation_array, interval=100)
             #anime_gif.save("proposal_gif2.gif", writer="pillow")
             #path_fig.plot_3d_potential()
-            plt.close()
+            #df = pd.DataFrame(excel_data_route, fgoal.locate_goal, veh1.init_locate, obs_trajectry, obs.obs_velocity_vector,target_goal_record, columns=['route_X', 'route_Y','Goal',"start","obs_locate","obs_speed","target_goal"])
+            
+            #max_length = max(len(excel_data_route), len(fgoal.locate_goal), len(veh1.init_locate), len(obs_trajectry), len(obs.obs_velocity_vector), len(target_goal_record))
+            #excel_data_route = extend_list(excel_data_route, max_length)
+            #fgoal.locate_goal = extend_list(fgoal.locate_goal, max_length)
+            #veh1.init_locate = extend_list(veh1.init_locate, max_length)
+            #obs_trajectry = extend_list(obs_trajectry, max_length)
+            #obs.obs_velocity_vector = extend_list(obs.obs_velocity_vector, max_length)
+            #target_goal_record = extend_list(target_goal_record, max_length)
+            #df = pd.DataFrame({
+            #    'route_X': [x[0] for x in excel_data_route],
+            #    'route_Y': [x[1] for x in excel_data_route],
+            #    'Goal_X': [fgoal.locate_goal[0]],
+            #    'Goal_Y': [fgoal.locate_goal[1]],
+            #    'start_X': [veh1.init_locate[0]],
+            #    'start_Y': [veh1.init_locate[1]],
+            #    'obs_locate_X': [x[0] for x in obs_trajectry],
+            #    'obs_locate_Y': [x[1] for x in obs_trajectry],
+            #    'obs_speed_X': [obs.obs_velocity_vector[0]],
+            #    'obs_speed_Y': [obs.obs_velocity_vector[1]],
+            #    'target_goal_X': [x[0] for x in target_goal_record],
+            #    'target_goal_Y': [x[1] for x in target_goal_record]})
+            #df.to_excel('proposal_dynamic.xlsx', index=False)
+            wb = Workbook()
+            ws = wb.active
+            previous_max_column = 0
+            previous_max = 0
+            label_list = ['V_traject_X', 'V_traject_Y', 'obs_locate_x', 'obs_locate_y','obs_speed_x','obs_speed_y', 'target_goal_x','target_goal_x','Goal']
+            # リストの要素を順番にセルに書き込む
+            for col_index, value in enumerate(label_list, start=1):
+                    cell = ws.cell(row=1, column=col_index, value=value)
 
+            for row_index, row in enumerate(excel_data_route, start=2):
+                for col_index, value in enumerate(row, start=1):
+                    cell = ws.cell(row=row_index, column=col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
 
+            # obs_trajectry の処理
+            previous_max = 0
+            for row_index, row_data in enumerate(obs_trajectry, start=2):
+                for col_index, value in enumerate(row_data[0], start=1):
+                    cell = ws.cell(row=row_index, column=previous_max_column+col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # obs.obs_velocity_vector の処理
+            previous_max = 0
+            for row_index, row in enumerate(obs.obs_velocity_vector, start=2):
+                for col_index, value in enumerate(row, start=1):
+                    cell = ws.cell(row=row_index, column= previous_max_column+col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # target_goal_record の処理
+            previous_max = 0
+            for row_index, row in enumerate(target_goal_record, start=2):
+                for col_index, value in enumerate(row, start=1):
+                    cell = ws.cell(row=row_index, column=previous_max_column+col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # Excelファイルに保存
+            wb.save('4research_APF_fig\excel_date/proposal_dynamicfromrightside.xlsx')
+            
 if __name__ == '__main__':
-    fgoal = goal([120,120],10)
-    obs = obstacles([[100,100]])
+    fgoal = goal([70,70],10)
+    obs = obstacles([[50,8]])
     veh1 = vehicles([0,0])
     dimention = proposal_the_other_dimension()
     APF = calc_APF(veh1.speed)
@@ -640,5 +787,10 @@ if __name__ == '__main__':
     temp_goal = temporary_goal()
     tempgoal4dynamic = temporary_goal()
     animation_array = []
+    excel_data_route = []
+    excel_data_route.append(veh1.init_locate)
+    obs_trajectry = []
+    effect_dynamic_rep = []
+    target_goal_record = []
     main()
  

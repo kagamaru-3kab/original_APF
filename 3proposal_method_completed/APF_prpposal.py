@@ -9,7 +9,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import patches as pat
 from matplotlib import cm
-
+from openpyxl import Workbook
+import copy
 class goal():                          
     def __init__(self, locate, area):
         """   
@@ -32,6 +33,16 @@ class obstacles():
         obstacles: ID and position array([x1,y1][x2,y2]..)
         """
         self.locate_obstacles = obstacles
+        self.obs_velocity_vector = [[0, 0]]#needed proposal dimension
+    def update_locate_obs(self):
+        """   
+        Content: update location dynamic obstacles ,assign dynamic obs id and displacement
+        obstacles: ID and position array([x1,y1][x2,y2]..)
+        self.obs_velocity_vector = [Vx, Vy]
+        """
+        for d in range(len(self.dynamic_obs_id)): 
+           self.locate_obstacles[self.dynamic_obs_id[d]][0] += self.obs_velocity_vector[self.dynamic_obs_id[d]][0]
+           self.locate_obstacles[self.dynamic_obs_id[d]][1] += self.obs_velocity_vector[self.dynamic_obs_id[d]][1]
         
 class vehicles():
     def __init__(self, init_locate): 
@@ -43,6 +54,7 @@ class vehicles():
         self.diameter = 0.5
         self.speed    = 0.1
         self.locate_vehicles = init_locate
+        self.init_locate = init_locate
     
     def get_locate(self, locate):     #update vehicle position
         self.locate_vehicles = locate
@@ -124,7 +136,7 @@ class plot_path(): #plot vehicle trajectory
         self.ploting_path = fig.add_subplot(111)
         self.ploting_path.set_xlabel('X-distance: m')
         self.ploting_path.set_ylabel('Y-distance: m')
-        self.graph_range = [0, 60]
+        self.graph_range = [0, 150]
         plt.xlim([self.graph_range[0], self.graph_range[1]])
         plt.ylim([self.graph_range[0], self.graph_range[1]])
         self.goal_position = goal_position
@@ -348,9 +360,17 @@ def main():
     if APF.dist_v2goal != None:
         while (APF.dist_v2goal - veh1.diameter) > fgoal.diameter_size:  #iterate until reach goal    
             partialdiffer_x, partialdiffer_y = APF.route_creater(target_goal, veh1.locate_vehicles, obs.locate_obstacles)
+            duetoexpandmap = 3
+            partialdiffer_x, partialdiffer_y = duetoexpandmap*partialdiffer_x, duetoexpandmap*partialdiffer_y
             veh1.locate_vehicles = [veh1.locate_vehicles[0]+partialdiffer_x, veh1.locate_vehicles[1]+partialdiffer_y]
+            obs_locatecopy = copy.deepcopy(obs.locate_obstacles)
+            obs_trajectry.append(obs_locatecopy)
+            if target_goal == None:
+                target_goal_record.append([0,0])
+            else:
+                target_goal_record.append(target_goal)
             path_fig.plot_vehicle(veh1.locate_vehicles)
-            plt.pause(0.002)
+            plt.pause(0.02)
         if judgereach_finalgoal:
             APF.dist_v2goal = None
             print("reach tempo goal but not reach final goal")
@@ -358,14 +378,64 @@ def main():
             return main()
         else:
             print("finish and show 3d")
-            path_fig.plot_3d_potential()
+            #path_fig.plot_3d_potential()
+            wb = Workbook()
+            ws = wb.active
+            previous_max_column = 0
+            previous_max = 0
+            label_list = ['V_traject_X', 'V_traject_Y', 'obs_locate_x', 'obs_locate_y','obs_speed_x','obs_speed_y', 'target_goal_x','target_goal_y','Goal']
+            # リストの要素を順番にセルに書き込む
+            for col_index, value in enumerate(label_list, start=1):
+                    cell = ws.cell(row=1, column=col_index, value=value)
+
+            for row_index, row in enumerate(excel_data_route, start=2):
+                for col_index, value in enumerate(row, start=1):
+                    cell = ws.cell(row=row_index, column=col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # obs_trajectry の処理
+            previous_max = 0
+            for row_index, row_data in enumerate(obs_trajectry, start=2):
+                for col_index, value in enumerate(row_data[0], start=1):
+                    cell = ws.cell(row=row_index, column=previous_max_column+col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # obs.obs_velocity_vector の処理
+            previous_max = 0
+            for row_index, row in enumerate(obs.obs_velocity_vector, start=2):
+                for col_index, value in enumerate(row, start=1):
+                    cell = ws.cell(row=row_index, column= previous_max_column+col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # target_goal_record の処理
+            previous_max = 0
+            for row_index, row in enumerate(target_goal_record, start=2):
+                for col_index, value in enumerate(row, start=1):
+                    cell = ws.cell(row=row_index, column=previous_max_column+col_index, value=value)
+                    if previous_max < col_index + previous_max_column:
+                        previous_max = col_index + previous_max_column
+            previous_max_column = previous_max
+
+            # Excelファイルに保存
+            wb.save('4research_APF_fig\excel_date/proposal_static_1obs.xlsx')
 
 
 if __name__ == '__main__':
-    fgoal = goal([50,50],10)
-    obs = obstacles([[20,20],[30, 40]])
+    fgoal = goal([70,70],10)
+    obs = obstacles([[44, 44]])
     veh1 = vehicles([0,0])
     APF = calc_APF(veh1.speed)
     path_fig = plot_path(veh1.locate_vehicles, fgoal.locate_goal)
     temp_goal = temporary_goal()
+    excel_data_route = []
+    excel_data_route.append(veh1.init_locate)
+    obs_trajectry = []
+    effect_dynamic_rep = []
+    target_goal_record = []
     main()
